@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yield Curve Analysis · APAC</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+<style>
+  :root{
+    --bg:#0D1117; --panel:#161B22; --card:#21262D; --border:#30363D;
+    --blue:#58A6FF; --orange:#F78166; --green:#3FB950; --purple:#BC8CFF;
+    --grey:#8B949E; --grey-dim:#484F58; --white:#E6EDF3; --red:#F85149;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--white);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    padding:16px 26px;
+  }
+  h1{font-size:1.4rem; font-weight:700; margin-bottom:1px;}
+  .subtitle{color:var(--grey); font-size:0.75rem; margin-bottom:10px;}
+
+  /* Tabs */
+  .tabs{display:flex; gap:8px; margin-bottom:14px;}
+  .tab{
+    background:var(--card); color:var(--grey); border:1px solid var(--border);
+    border-radius:6px 6px 0 0; font-weight:600; font-size:0.82rem;
+    padding:6px 18px; cursor:pointer; transition:all .15s;
+  }
+  .tab:hover{color:var(--white);}
+  .tab.active{background:#1A2F4A; color:var(--blue);
+    border-color:var(--blue); border-bottom:2px solid var(--blue);}
+
+  /* Top row */
+  .toprow{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;}
+  .country-info{display:flex; align-items:center; gap:8px; padding-top:14px;}
+  .country-name{color:var(--white); font-size:0.95rem; font-weight:700;}
+  .cb-pill{border:1px solid; background:rgba(88,166,255,0.08);
+    padding:1px 8px; border-radius:20px; font-size:0.65rem; font-weight:700;}
+  .currency-note{color:var(--grey); font-size:0.72rem;}
+
+  .dates{display:flex; flex-direction:column; gap:4px; align-items:flex-end;}
+  .date-label{font-size:0.55rem; font-weight:700; letter-spacing:0.08em;
+    text-transform:uppercase; margin-bottom:2px;}
+  .date-box{background:var(--card); border:1px solid var(--border);
+    border-radius:6px; padding:4px 10px; font-family:monospace;
+    font-size:0.80rem; color:var(--white); font-weight:700; min-width:130px; text-align:center;}
+  .date-box.hist{border-color:var(--orange);}
+  .date-box.curr{border-color:var(--blue); cursor:pointer;}
+  select.date-select{background:var(--card); border:1px solid var(--blue);
+    border-radius:6px; padding:4px 10px; font-family:monospace;
+    font-size:0.80rem; color:var(--white); font-weight:700; min-width:130px;
+    text-align:center; cursor:pointer;}
+  select.date-select.hist{border-color:var(--orange);}
+
+  hr{border:none; border-top:1px solid var(--border); margin:8px 0;}
+
+  /* Layout */
+  .main{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
+
+  /* Chart panel */
+  #chart{width:100%; height:520px;}
+
+  /* Slider */
+  .slider-wrap{margin-top:6px;}
+  .slider-label{color:var(--grey); font-size:0.58rem; font-weight:700;
+    letter-spacing:0.10em; text-transform:uppercase; margin-bottom:3px;}
+  .slider-date{color:var(--orange); font-size:0.85rem; font-weight:700;
+    text-align:center; margin-bottom:4px; font-family:monospace;}
+  .slider-row{display:flex; align-items:center; gap:12px;}
+  input[type=range]{
+    -webkit-appearance:none; appearance:none;
+    flex:1; height:4px; border-radius:2px;
+    background:var(--border); outline:none; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none;
+    width:18px; height:18px; border-radius:50%;
+    background:var(--orange); border:2px solid var(--white); cursor:pointer;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:18px; height:18px; border-radius:50%;
+    background:var(--orange); border:2px solid var(--white); cursor:pointer;
+  }
+  .play-btn{
+    background:var(--card); border:1px solid var(--border); color:var(--white);
+    border-radius:6px; width:38px; height:32px; font-size:0.9rem;
+    cursor:pointer; transition:all .15s;
+  }
+  .play-btn:hover{border-color:var(--blue); color:var(--blue);}
+  .play-btn.playing{border-color:var(--orange); color:var(--orange);}
+
+  /* Metrics */
+  .metrics-label{color:var(--grey); font-size:0.58rem; font-weight:700;
+    letter-spacing:0.10em; text-transform:uppercase; margin:6px 0 4px 0;}
+  .metric-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:6px;}
+  .metric-grid.two{grid-template-columns:repeat(2,1fr);}
+  .metric{background:var(--card); border:1px solid var(--border);
+    border-radius:6px; padding:6px 8px;}
+  .metric .m-label{color:var(--grey); font-size:0.58rem; font-weight:600;
+    text-transform:uppercase; letter-spacing:0.04em;}
+  .metric .m-value{color:var(--white); font-size:0.88rem; font-weight:700; margin-top:2px;}
+  .metric .m-delta{font-size:0.58rem; margin-top:1px;}
+  .up{color:var(--green);} .down{color:var(--orange);}
+
+  /* CB cards */
+  .cb-cards{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:2px;}
+  .cb-card{background:var(--card); border:1px solid var(--border);
+    border-radius:8px; padding:8px 10px; border-left:3px solid;}
+  .cb-card-title{font-size:0.54rem; font-weight:700; letter-spacing:0.09em;
+    text-transform:uppercase; margin-bottom:5px;}
+  .cb-line{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:3px;}
+  .cb-line-label{color:var(--grey); font-size:0.62rem;}
+  .cb-line-value{font-size:0.70rem; font-weight:700; font-family:monospace;}
+  .cb-note{color:var(--grey-dim); font-size:0.62rem; margin-top:4px; line-height:1.4;}
+
+  .ctx-note{margin-top:10px; padding:8px 14px; background:var(--card);
+    border-left:3px solid; border-radius:4px;}
+  .ctx-note span{color:var(--grey); font-size:0.74rem;}
+</style>
+</head>
+<body>
+  <h1>📈 Yield Curve Analysis · APAC</h1>
+  <p class="subtitle">Sovereign Rates · JP / CN / SG / KR / IN · Source: Bloomberg &nbsp;·&nbsp; <em>Standalone HTML — drag the slider for live curve animation</em></p>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="toprow">
+    <div class="country-info">
+      <span class="country-name" id="country-name"></span>
+      <span class="cb-pill" id="cb-pill"></span>
+      <span class="currency-note" id="currency-note"></span>
+    </div>
+    <div class="dates">
+      <div>
+        <div class="date-label" style="color:var(--orange);">Historical Date</div>
+        <select class="date-select hist" id="hist-select"></select>
+      </div>
+      <div>
+        <div class="date-label" style="color:var(--blue);">Current Date</div>
+        <select class="date-select" id="curr-select"></select>
+      </div>
+    </div>
+  </div>
+  <hr>
+
+  <div class="main">
+    <div>
+      <div id="chart"></div>
+      <div class="slider-wrap">
+        <div class="slider-label">Historical Date — Slider</div>
+        <div class="slider-date" id="slider-date"></div>
+        <div class="slider-row">
+          <input type="range" id="hist-slider" min="0" value="0" step="1">
+          <button class="play-btn" id="play-btn">▶</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="metrics-label">Spreads</div>
+      <div class="metric-grid" id="spreads"></div>
+      <div class="metrics-label">Slope 2s10s</div>
+      <div class="metric-grid two" id="slopes"></div>
+      <div class="metrics-label" id="cb-label">Central Bank</div>
+      <div class="cb-cards" id="cb-cards"></div>
+      <div class="ctx-note" id="ctx-note"><span></span></div>
+    </div>
+  </div>
+
+<script>
+const DATA = {"maturities":["3M","6M","1Y","2Y","3Y","5Y","7Y","10Y","30Y"],"mat_years":{"3M":0.25,"6M":0.5,"1Y":1,"2Y":2,"3Y":3,"5Y":5,"7Y":7,"10Y":10,"30Y":30},"countries":{"JP":{"snapshots":[{"date":"2022-01-03","rates":{"3M":-0.06,"6M":-0.04,"1Y":-0.07,"2Y":-0.06,"3Y":-0.01,"5Y":0.13,"7Y":0.19,"10Y":0.07,"30Y":0.72}},{"date":"2022-06-15","rates":{"3M":-0.07,"6M":-0.05,"1Y":-0.07,"2Y":-0.05,"3Y":0.02,"5Y":0.18,"7Y":0.23,"10Y":0.23,"30Y":0.88}},{"date":"2022-09-08","rates":{"3M":-0.07,"6M":-0.05,"1Y":-0.06,"2Y":-0.04,"3Y":0.04,"5Y":0.2,"7Y":0.24,"10Y":0.25,"30Y":1.02}},{"date":"2022-12-15","rates":{"3M":-0.04,"6M":-0.03,"1Y":-0.04,"2Y":-0.01,"3Y":0.07,"5Y":0.24,"7Y":0.32,"10Y":0.42,"30Y":1.35}},{"date":"2023-03-16","rates":{"3M":-0.04,"6M":-0.03,"1Y":-0.03,"2Y":0.02,"3Y":0.09,"5Y":0.28,"7Y":0.39,"10Y":0.5,"30Y":1.4}},{"date":"2023-06-15","rates":{"3M":-0.04,"6M":-0.03,"1Y":-0.02,"2Y":0.04,"3Y":0.12,"5Y":0.33,"7Y":0.46,"10Y":0.4,"30Y":1.42}},{"date":"2023-09-14","rates":{"3M":-0.06,"6M":-0.04,"1Y":-0.02,"2Y":0.06,"3Y":0.19,"5Y":0.46,"7Y":0.61,"10Y":0.73,"30Y":1.75}},{"date":"2023-12-14","rates":{"3M":-0.04,"6M":-0.02,"1Y":0.01,"2Y":0.08,"3Y":0.21,"5Y":0.52,"7Y":0.71,"10Y":0.78,"30Y":1.82}},{"date":"2024-03-07","rates":{"3M":0.05,"6M":0.09,"1Y":0.16,"2Y":0.22,"3Y":0.3,"5Y":0.52,"7Y":0.73,"10Y":0.78,"30Y":1.95}},{"date":"2024-06-06","rates":{"3M":0.12,"6M":0.19,"1Y":0.28,"2Y":0.35,"3Y":0.45,"5Y":0.68,"7Y":0.88,"10Y":0.99,"30Y":2.1}},{"date":"2024-09-12","rates":{"3M":0.22,"6M":0.3,"1Y":0.4,"2Y":0.43,"3Y":0.51,"5Y":0.72,"7Y":0.91,"10Y":0.87,"30Y":2.15}},{"date":"2024-12-12","rates":{"3M":0.35,"6M":0.45,"1Y":0.52,"2Y":0.58,"3Y":0.64,"5Y":0.8,"7Y":0.97,"10Y":1.05,"30Y":2.28}},{"date":"2025-01-30","rates":{"3M":0.42,"6M":0.52,"1Y":0.6,"2Y":0.68,"3Y":0.74,"5Y":0.9,"7Y":1.05,"10Y":1.19,"30Y":2.42}},{"date":"2025-03-06","rates":{"3M":0.48,"6M":0.57,"1Y":0.66,"2Y":0.74,"3Y":0.8,"5Y":0.95,"7Y":1.1,"10Y":1.26,"30Y":2.5}},{"date":"2025-04-29","rates":{"3M":0.52,"6M":0.62,"1Y":0.72,"2Y":0.8,"3Y":0.86,"5Y":1.0,"7Y":1.15,"10Y":1.3,"30Y":2.55}}],"events":[{"type":"last_change","date":"2025-01-24","bp":25.0,"level":0.5,"notes":"Third hike since YCC exit \u2014 rate to 0.50%"},{"type":"next_meeting","date":"2025-05-01","bp":null,"level":null,"notes":"Monetary Policy Meeting (MPM) \u2014 May 2025"}]},"CN":{"snapshots":[{"date":"2022-01-03","rates":{"3M":2.35,"6M":2.55,"1Y":2.6,"2Y":2.65,"3Y":2.72,"5Y":2.8,"7Y":2.88,"10Y":2.78,"30Y":3.4}},{"date":"2022-06-15","rates":{"3M":1.85,"6M":2.0,"1Y":2.1,"2Y":2.45,"3Y":2.6,"5Y":2.75,"7Y":2.83,"10Y":2.8,"30Y":3.38}},{"date":"2022-09-08","rates":{"3M":1.7,"6M":1.88,"1Y":2.02,"2Y":2.28,"3Y":2.48,"5Y":2.68,"7Y":2.76,"10Y":2.74,"30Y":3.3}},{"date":"2022-12-15","rates":{"3M":2.0,"6M":2.1,"1Y":2.2,"2Y":2.4,"3Y":2.55,"5Y":2.68,"7Y":2.75,"10Y":2.84,"30Y":3.42}},{"date":"2023-03-16","rates":{"3M":2.1,"6M":2.2,"1Y":2.3,"2Y":2.48,"3Y":2.6,"5Y":2.72,"7Y":2.78,"10Y":2.9,"30Y":3.48}},{"date":"2023-06-15","rates":{"3M":1.88,"6M":1.95,"1Y":2.05,"2Y":2.28,"3Y":2.42,"5Y":2.56,"7Y":2.65,"10Y":2.68,"30Y":3.35}},{"date":"2023-09-14","rates":{"3M":2.0,"6M":2.08,"1Y":2.15,"2Y":2.35,"3Y":2.48,"5Y":2.6,"7Y":2.68,"10Y":2.7,"30Y":3.3}},{"date":"2023-12-14","rates":{"3M":2.2,"6M":2.28,"1Y":2.35,"2Y":2.5,"3Y":2.6,"5Y":2.68,"7Y":2.72,"10Y":2.62,"30Y":3.08}},{"date":"2024-03-07","rates":{"3M":1.92,"6M":2.0,"1Y":2.05,"2Y":2.18,"3Y":2.28,"5Y":2.38,"7Y":2.42,"10Y":2.3,"30Y":2.55}},{"date":"2024-06-06","rates":{"3M":1.75,"6M":1.82,"1Y":1.88,"2Y":2.0,"3Y":2.1,"5Y":2.22,"7Y":2.28,"10Y":2.26,"30Y":2.5}},{"date":"2024-09-12","rates":{"3M":1.48,"6M":1.55,"1Y":1.6,"2Y":1.72,"3Y":1.82,"5Y":1.94,"7Y":2.0,"10Y":2.05,"30Y":2.28}},{"date":"2024-12-12","rates":{"3M":1.2,"6M":1.28,"1Y":1.35,"2Y":1.42,"3Y":1.52,"5Y":1.65,"7Y":1.72,"10Y":1.78,"30Y":2.1}},{"date":"2025-01-30","rates":{"3M":1.15,"6M":1.22,"1Y":1.3,"2Y":1.38,"3Y":1.48,"5Y":1.6,"7Y":1.68,"10Y":1.75,"30Y":2.05}},{"date":"2025-03-06","rates":{"3M":1.18,"6M":1.24,"1Y":1.32,"2Y":1.4,"3Y":1.5,"5Y":1.62,"7Y":1.7,"10Y":1.77,"30Y":2.08}},{"date":"2025-04-29","rates":{"3M":1.2,"6M":1.26,"1Y":1.34,"2Y":1.42,"3Y":1.52,"5Y":1.64,"7Y":1.72,"10Y":1.78,"30Y":2.1}}],"events":[{"type":"last_change","date":"2024-09-27","bp":-20.0,"level":1.5,"notes":"7-day reverse repo cut 20bp to 1.50%"},{"type":"next_meeting","date":"2025-06-20","bp":null,"level":null,"notes":"Quarterly monetary policy assessment"}]},"SG":{"snapshots":[{"date":"2022-01-03","rates":{"3M":0.38,"6M":0.58,"1Y":0.82,"2Y":1.3,"3Y":1.55,"5Y":1.8,"7Y":1.9,"10Y":1.88,"30Y":2.08}},{"date":"2022-06-15","rates":{"3M":1.75,"6M":2.35,"1Y":2.8,"2Y":3.1,"3Y":3.05,"5Y":2.95,"7Y":2.9,"10Y":2.85,"30Y":2.72}},{"date":"2022-09-08","rates":{"3M":2.9,"6M":3.45,"1Y":3.8,"2Y":3.88,"3Y":3.72,"5Y":3.48,"7Y":3.3,"10Y":3.2,"30Y":3.05}},{"date":"2022-12-15","rates":{"3M":3.6,"6M":4.05,"1Y":4.2,"2Y":4.05,"3Y":3.8,"5Y":3.5,"7Y":3.35,"10Y":3.22,"30Y":3.08}},{"date":"2023-03-16","rates":{"3M":3.8,"6M":4.2,"1Y":4.35,"2Y":4.1,"3Y":3.88,"5Y":3.55,"7Y":3.38,"10Y":3.25,"30Y":3.1}},{"date":"2023-06-15","rates":{"3M":3.9,"6M":4.3,"1Y":4.45,"2Y":4.18,"3Y":3.92,"5Y":3.6,"7Y":3.42,"10Y":3.3,"30Y":3.15}},{"date":"2023-09-14","rates":{"3M":3.95,"6M":4.38,"1Y":4.52,"2Y":4.25,"3Y":3.98,"5Y":3.65,"7Y":3.46,"10Y":3.35,"30Y":3.18}},{"date":"2023-12-14","rates":{"3M":3.72,"6M":4.1,"1Y":4.22,"2Y":3.9,"3Y":3.62,"5Y":3.3,"7Y":3.18,"10Y":3.05,"30Y":2.95}},{"date":"2024-03-07","rates":{"3M":3.65,"6M":3.98,"1Y":4.1,"2Y":3.82,"3Y":3.55,"5Y":3.22,"7Y":3.1,"10Y":2.98,"30Y":2.88}},{"date":"2024-06-06","rates":{"3M":3.55,"6M":3.85,"1Y":3.98,"2Y":3.7,"3Y":3.42,"5Y":3.1,"7Y":2.98,"10Y":2.88,"30Y":2.78}},{"date":"2024-09-12","rates":{"3M":3.2,"6M":3.48,"1Y":3.6,"2Y":3.3,"3Y":3.02,"5Y":2.75,"7Y":2.65,"10Y":2.56,"30Y":2.5}},{"date":"2024-12-12","rates":{"3M":2.85,"6M":3.1,"1Y":3.22,"2Y":2.95,"3Y":2.7,"5Y":2.48,"7Y":2.4,"10Y":2.32,"30Y":2.28}},{"date":"2025-01-30","rates":{"3M":2.78,"6M":3.02,"1Y":3.15,"2Y":2.88,"3Y":2.64,"5Y":2.42,"7Y":2.35,"10Y":2.28,"30Y":2.22}},{"date":"2025-03-06","rates":{"3M":2.72,"6M":2.95,"1Y":3.08,"2Y":2.82,"3Y":2.58,"5Y":2.38,"7Y":2.3,"10Y":2.24,"30Y":2.18}},{"date":"2025-04-29","rates":{"3M":2.68,"6M":2.9,"1Y":3.02,"2Y":2.76,"3Y":2.52,"5Y":2.32,"7Y":2.25,"10Y":2.19,"30Y":2.14}}],"events":[{"type":"last_change","date":"2024-10-14","bp":null,"level":null,"notes":"Reduced slope of S$NEER appreciation \u2014 easing bias"},{"type":"next_meeting","date":"2025-04-01","bp":null,"level":null,"notes":"Monetary Policy Statement (MPS) \u2014 semi-annual"}]},"KR":{"snapshots":[{"date":"2022-01-03","rates":{"3M":1.28,"6M":1.48,"1Y":1.72,"2Y":2.0,"3Y":2.18,"5Y":2.32,"7Y":2.4,"10Y":2.38,"30Y":2.55}},{"date":"2022-06-15","rates":{"3M":2.55,"6M":2.95,"1Y":3.3,"2Y":3.45,"3Y":3.38,"5Y":3.25,"7Y":3.18,"10Y":3.05,"30Y":3.2}},{"date":"2022-09-08","rates":{"3M":3.35,"6M":3.65,"1Y":3.88,"2Y":4.0,"3Y":3.9,"5Y":3.72,"7Y":3.58,"10Y":3.48,"30Y":3.55}},{"date":"2022-12-15","rates":{"3M":3.75,"6M":4.05,"1Y":4.18,"2Y":4.1,"3Y":3.92,"5Y":3.72,"7Y":3.58,"10Y":3.45,"30Y":3.52}},{"date":"2023-03-16","rates":{"3M":3.6,"6M":3.88,"1Y":4.0,"2Y":3.9,"3Y":3.72,"5Y":3.55,"7Y":3.42,"10Y":3.3,"30Y":3.38}},{"date":"2023-06-15","rates":{"3M":3.55,"6M":3.8,"1Y":3.95,"2Y":3.82,"3Y":3.65,"5Y":3.48,"7Y":3.35,"10Y":3.25,"30Y":3.32}},{"date":"2023-09-14","rates":{"3M":3.62,"6M":3.88,"1Y":4.02,"2Y":3.9,"3Y":3.72,"5Y":3.55,"7Y":3.42,"10Y":3.32,"30Y":3.4}},{"date":"2023-12-14","rates":{"3M":3.48,"6M":3.7,"1Y":3.82,"2Y":3.68,"3Y":3.5,"5Y":3.32,"7Y":3.2,"10Y":3.1,"30Y":3.18}},{"date":"2024-03-07","rates":{"3M":3.42,"6M":3.62,"1Y":3.75,"2Y":3.6,"3Y":3.42,"5Y":3.25,"7Y":3.14,"10Y":3.04,"30Y":3.12}},{"date":"2024-06-06","rates":{"3M":3.38,"6M":3.58,"1Y":3.7,"2Y":3.55,"3Y":3.38,"5Y":3.2,"7Y":3.1,"10Y":3.0,"30Y":3.08}},{"date":"2024-09-12","rates":{"3M":3.2,"6M":3.38,"1Y":3.48,"2Y":3.3,"3Y":3.12,"5Y":2.98,"7Y":2.9,"10Y":2.82,"30Y":2.92}},{"date":"2024-12-12","rates":{"3M":2.88,"6M":3.02,"1Y":3.12,"2Y":2.95,"3Y":2.8,"5Y":2.68,"7Y":2.62,"10Y":2.55,"30Y":2.65}},{"date":"2025-01-30","rates":{"3M":2.8,"6M":2.95,"1Y":3.05,"2Y":2.88,"3Y":2.72,"5Y":2.6,"7Y":2.55,"10Y":2.48,"30Y":2.58}},{"date":"2025-03-06","rates":{"3M":2.75,"6M":2.9,"1Y":3.0,"2Y":2.82,"3Y":2.66,"5Y":2.54,"7Y":2.5,"10Y":2.42,"30Y":2.52}},{"date":"2025-04-29","rates":{"3M":2.7,"6M":2.85,"1Y":2.96,"2Y":2.78,"3Y":2.62,"5Y":2.5,"7Y":2.46,"10Y":2.38,"30Y":2.48}}],"events":[{"type":"last_change","date":"2025-02-25","bp":-25.0,"level":2.75,"notes":"Cut base rate 25bp to 2.75% \u2014 growth concerns"},{"type":"next_meeting","date":"2025-04-17","bp":null,"level":null,"notes":"Monetary Policy Board (MPB) meeting \u2014 April"}]},"IN":{"snapshots":[{"date":"2022-01-03","rates":{"3M":3.88,"6M":4.05,"1Y":4.28,"2Y":5.02,"3Y":5.58,"5Y":6.25,"7Y":6.55,"10Y":6.45,"30Y":6.85}},{"date":"2022-06-15","rates":{"3M":5.35,"6M":5.8,"1Y":6.2,"2Y":6.55,"3Y":6.72,"5Y":6.88,"7Y":7.0,"10Y":7.45,"30Y":7.55}},{"date":"2022-09-08","rates":{"3M":5.85,"6M":6.18,"1Y":6.5,"2Y":6.8,"3Y":6.92,"5Y":7.05,"7Y":7.15,"10Y":7.22,"30Y":7.42}},{"date":"2022-12-15","rates":{"3M":6.25,"6M":6.52,"1Y":6.72,"2Y":6.92,"3Y":7.02,"5Y":7.12,"7Y":7.2,"10Y":7.28,"30Y":7.48}},{"date":"2023-03-16","rates":{"3M":6.58,"6M":6.78,"1Y":6.92,"2Y":7.05,"3Y":7.12,"5Y":7.2,"7Y":7.25,"10Y":7.3,"30Y":7.5}},{"date":"2023-06-15","rates":{"3M":6.62,"6M":6.8,"1Y":6.95,"2Y":7.08,"3Y":7.15,"5Y":7.22,"7Y":7.26,"10Y":7.02,"30Y":7.2}},{"date":"2023-09-14","rates":{"3M":6.7,"6M":6.88,"1Y":7.0,"2Y":7.12,"3Y":7.18,"5Y":7.24,"7Y":7.28,"10Y":7.16,"30Y":7.35}},{"date":"2023-12-14","rates":{"3M":6.8,"6M":6.95,"1Y":7.05,"2Y":7.15,"3Y":7.2,"5Y":7.25,"7Y":7.28,"10Y":7.18,"30Y":7.38}},{"date":"2024-03-07","rates":{"3M":6.88,"6M":7.0,"1Y":7.08,"2Y":7.15,"3Y":7.18,"5Y":7.22,"7Y":7.24,"10Y":7.05,"30Y":7.25}},{"date":"2024-06-06","rates":{"3M":6.72,"6M":6.85,"1Y":6.95,"2Y":7.02,"3Y":7.06,"5Y":7.1,"7Y":7.12,"10Y":6.98,"30Y":7.18}},{"date":"2024-09-12","rates":{"3M":6.42,"6M":6.58,"1Y":6.68,"2Y":6.78,"3Y":6.82,"5Y":6.88,"7Y":6.92,"10Y":6.78,"30Y":6.98}},{"date":"2024-12-12","rates":{"3M":6.28,"6M":6.42,"1Y":6.52,"2Y":6.62,"3Y":6.66,"5Y":6.72,"7Y":6.75,"10Y":6.68,"30Y":6.88}},{"date":"2025-01-30","rates":{"3M":6.22,"6M":6.35,"1Y":6.45,"2Y":6.55,"3Y":6.58,"5Y":6.65,"7Y":6.68,"10Y":6.62,"30Y":6.82}},{"date":"2025-03-06","rates":{"3M":6.18,"6M":6.3,"1Y":6.4,"2Y":6.5,"3Y":6.54,"5Y":6.6,"7Y":6.64,"10Y":6.58,"30Y":6.78}},{"date":"2025-04-29","rates":{"3M":6.15,"6M":6.28,"1Y":6.38,"2Y":6.48,"3Y":6.52,"5Y":6.58,"7Y":6.62,"10Y":6.55,"30Y":6.75}}],"events":[{"type":"last_change","date":"2025-02-07","bp":-25.0,"level":6.25,"notes":"First cut since May 2020 \u2014 repo rate to 6.25%"},{"type":"next_meeting","date":"2025-06-06","bp":null,"level":null,"notes":"Monetary Policy Committee (MPC) \u2014 June 2025"}]}}};
+
+const META = {
+  JP:{name:"Japan",cb:"BoJ",currency:"JPY",color:"#BC8CFF"},
+  CN:{name:"China",cb:"PBOC",currency:"CNY",color:"#F78166"},
+  SG:{name:"Singapore",cb:"MAS",currency:"SGD",color:"#58A6FF"},
+  KR:{name:"South Korea",cb:"BOK",currency:"KRW",color:"#3FB950"},
+  IN:{name:"India",cb:"RBI",currency:"INR",color:"#F0A500"},
+};
+const NOTES = {
+  JP:"⚠️  BoJ maintained YCC until Mar 2024 — 10Y capped at 0.25% then 0.5%. Pre-2024 curves reflect this distortion.",
+  CN:"ℹ️  PBOC easing cycle 2023–2025. Onshore CGBs, structurally decoupled from Fed/ECB.",
+  IN:"ℹ️  Nominal INR rates significantly higher than APAC peers (~6–7%). Compare on a relative basis.",
+  SG:"ℹ️  MAS acts via S$NEER, not rates directly. SGS tracks USD rates closely.",
+  KR:"ℹ️  BOK conventional cycle. KTBs are IG-rated, liquid — benchmark for EM Asia.",
+};
+const MATS = DATA.maturities;
+const MY = DATA.mat_years;
+const LABEL_MATS = new Set(["6M","2Y","5Y","10Y","30Y"]);
+const COLORS = {panel:"#161B22",bg:"#0D1117",card:"#21262D",border:"#30363D",
+  orange:"#F78166",green:"#3FB950",grey:"#8B949E",white:"#E6EDF3"};
+
+let country = "JP";
+let currIdx = {};    // current date index per country
+let histIdx = {};    // historical date index per country
+let playing = false;
+let playTimer = null;
+
+// init indices
+Object.keys(DATA.countries).forEach(cc=>{
+  const n = DATA.countries[cc].snapshots.length;
+  currIdx[cc] = n-1;   // last date
+  histIdx[cc] = 0;     // first date
+});
+
+// ── Cubic spline interpolation (natural) ──────────────────────────────────────
+function spline(xs, ys, xnew){
+  const n = xs.length;
+  if(n<3) return xnew.map(x=>{
+    // linear fallback
+    for(let i=0;i<n-1;i++){if(x>=xs[i]&&x<=xs[i+1]){
+      const t=(x-xs[i])/(xs[i+1]-xs[i]); return ys[i]+t*(ys[i+1]-ys[i]);}}
+    return ys[n-1];
+  });
+  // build second derivatives
+  const u=new Array(n).fill(0), y2=new Array(n).fill(0);
+  for(let i=1;i<n-1;i++){
+    const sig=(xs[i]-xs[i-1])/(xs[i+1]-xs[i-1]);
+    const p=sig*y2[i-1]+2; y2[i]=(sig-1)/p;
+    u[i]=(ys[i+1]-ys[i])/(xs[i+1]-xs[i])-(ys[i]-ys[i-1])/(xs[i]-xs[i-1]);
+    u[i]=(6*u[i]/(xs[i+1]-xs[i-1])-sig*u[i-1])/p;
+  }
+  for(let k=n-2;k>=0;k--) y2[k]=y2[k]*y2[k+1]+u[k];
+  return xnew.map(x=>{
+    let lo=0, hi=n-1;
+    while(hi-lo>1){const k=(hi+lo)>>1; if(xs[k]>x)hi=k; else lo=k;}
+    const h=xs[hi]-xs[lo];
+    const a=(xs[hi]-x)/h, b=(x-xs[lo])/h;
+    return a*ys[lo]+b*ys[hi]+((a*a*a-a)*y2[lo]+(b*b*b-b)*y2[hi])*(h*h)/6;
+  });
+}
+
+function ratesArray(snapshot){
+  return MATS.map(m=>snapshot.rates[m]);
+}
+function policyRateAt(cc, dateStr){
+  const evs = DATA.countries[cc].events.filter(e=>e.type==="last_change" && e.date<=dateStr);
+  if(evs.length){evs.sort((a,b)=>a.date<b.date?-1:1); return evs[evs.length-1].level;}
+  const all = DATA.countries[cc].events.filter(e=>e.type==="last_change");
+  all.sort((a,b)=>a.date<b.date?-1:1);
+  return all.length? all[0].level : null;
+}
+
+function fmtDate(iso){
+  const d=new Date(iso+"T00:00:00");
+  return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+}
+
+// ── Draw chart ────────────────────────────────────────────────────────────────
+function draw(){
+  const cc = country;
+  const snaps = DATA.countries[cc].snapshots;
+  const curr = snaps[currIdx[cc]];
+  const hist = snaps[histIdx[cc]];
+  const color = META[cc].color;
+
+  const xraw = MATS.map(m=>MY[m]);
+  const yc = ratesArray(curr), yh = ratesArray(hist);
+
+  // valid pairs
+  const pc = xraw.map((x,i)=>[x,yc[i]]).filter(p=>p[1]!==null);
+  const ph = xraw.map((x,i)=>[x,yh[i]]).filter(p=>p[1]!==null);
+
+  const xsSmooth = [];
+  const N=400, x0=pc[0][0], x1=pc[pc.length-1][0];
+  for(let i=0;i<N;i++) xsSmooth.push(x0+(x1-x0)*i/(N-1));
+  const ysC = spline(pc.map(p=>p[0]),pc.map(p=>p[1]),xsSmooth);
+  const ysH = spline(ph.map(p=>p[0]),ph.map(p=>p[1]),xsSmooth);
+
+  const rateCurr = policyRateAt(cc, curr.date);
+  const rateHist = policyRateAt(cc, hist.date);
+
+  // hover customdata
+  const matsSorted = MATS.map(m=>[m,MY[m]]).sort((a,b)=>a[1]-b[1]);
+  function mlabel(xv){let best=matsSorted[0],bd=1e9;for(const[m,y]of matsSorted){const d=Math.abs(y-xv);if(d<bd){bd=d;best=[m,y];}}return best[0];}
+  const custom = xsSmooth.map((x,i)=>{
+    const d=(ysC[i]-ysH[i]);
+    return [mlabel(x), ysC[i].toFixed(2)+"%", ysH[i].toFixed(2)+"%",
+      (d>=0?"+":"")+d.toFixed(2)+" bp",
+      rateCurr!==null?rateCurr.toFixed(2)+"%":"n/a",
+      rateHist!==null?rateHist.toFixed(2)+"%":"n/a"];
+  });
+
+  // label dots
+  function dots(map){
+    const xs=[],ys=[],tx=[];
+    MATS.forEach(m=>{if(LABEL_MATS.has(m)&&map.rates[m]!==null){
+      xs.push(MY[m]);ys.push(map.rates[m]);tx.push(map.rates[m].toFixed(2)+"%");}});
+    return {xs,ys,tx};
+  }
+  const dc=dots(curr), dh=dots(hist);
+
+  const traces=[];
+  // fill between
+  traces.push({x:xsSmooth.concat(xsSmooth.slice().reverse()),
+    y:ysC.concat(ysH.slice().reverse()), fill:"toself",
+    fillcolor:"rgba(88,166,255,0.06)", line:{color:"rgba(0,0,0,0)"},
+    hoverinfo:"skip", showlegend:false});
+  // hist line
+  traces.push({x:xsSmooth,y:ysH,mode:"lines",
+    line:{color:COLORS.orange,width:1.8,dash:"dash"},
+    name:"Historical · "+fmtDate(hist.date), hoverinfo:"skip"});
+  // hist dots
+  traces.push({x:dh.xs,y:dh.ys,mode:"markers+text",
+    marker:{color:COLORS.orange,size:7,line:{color:COLORS.panel,width:1.5}},
+    text:dh.tx,textposition:"bottom center",
+    textfont:{color:COLORS.orange,size:9},hoverinfo:"skip",showlegend:false});
+  // current line (hover)
+  traces.push({x:xsSmooth,y:ysC,mode:"lines",
+    line:{color:color,width:2.4},name:"Current · "+fmtDate(curr.date),
+    customdata:custom,
+    hovertemplate:"<b>≈ %{customdata[0]}</b><br>─────────────<br>"+
+      "<span style='color:"+color+"'>● Curr. yield</span>  %{customdata[1]}<br>"+
+      "<span style='color:"+COLORS.orange+"'>● Hist. yield</span>  %{customdata[2]}<br>"+
+      "<b>Δ (curr − hist)  %{customdata[3]}</b><br>─────────────<br>"+
+      "<span style='color:"+color+"'>▬ Curr. policy</span>  %{customdata[4]}<br>"+
+      "<span style='color:"+COLORS.orange+"'>▬ Hist. policy</span>  %{customdata[5]}<extra></extra>"});
+  // current dots
+  traces.push({x:dc.xs,y:dc.ys,mode:"markers+text",
+    marker:{color:color,size:8,line:{color:COLORS.panel,width:1.5}},
+    text:dc.tx,textposition:"top center",
+    textfont:{color:color,size:9},hoverinfo:"skip",showlegend:false});
+  // policy lines
+  const xspan=[xraw[0],xraw[xraw.length-1]];
+  if(rateCurr!==null){
+    traces.push({x:xspan,y:[rateCurr,rateCurr],mode:"lines",
+      line:{color:color,width:1.3,dash:"dot"},
+      name:"Policy (curr.) "+rateCurr.toFixed(2)+"%",hoverinfo:"skip"});
+  }
+  if(rateHist!==null){
+    traces.push({x:xspan,y:[rateHist,rateHist],mode:"lines",
+      line:{color:COLORS.orange,width:1.3,dash:"dot"},
+      name:"Policy (hist.) "+rateHist.toFixed(2)+"%",hoverinfo:"skip"});
+  }
+
+  // y range
+  let allY=[...yc,...yh].filter(v=>v!==null);
+  if(rateCurr!==null)allY.push(rateCurr);
+  if(rateHist!==null)allY.push(rateHist);
+  const ymin=Math.min(...allY), ymax=Math.max(...allY);
+  const pad=(ymax-ymin)*0.28;
+
+  const annotations=[];
+  if(rateCurr!==null)annotations.push({x:xraw[xraw.length-1],y:rateCurr,
+    text:"  "+rateCurr.toFixed(2)+"%",showarrow:false,xanchor:"left",
+    font:{color:color,size:9}});
+  if(rateHist!==null)annotations.push({x:xraw[xraw.length-1],y:rateHist,
+    text:"  "+rateHist.toFixed(2)+"%",showarrow:false,xanchor:"left",
+    font:{color:COLORS.orange,size:9}});
+  // 10Y delta badge
+  const c10=curr.rates["10Y"], h10=hist.rates["10Y"];
+  if(c10!==null&&h10!==null){
+    const sp=(c10-h10);
+    annotations.push({x:10,y:Math.max(c10,h10)+Math.abs(Math.max(c10,h10))*0.04,
+      text:"<b>10Y Δ "+(sp>0?"+":"")+sp.toFixed(2)+"bp</b>",showarrow:false,
+      font:{color:sp>0?COLORS.green:COLORS.orange,size:11},
+      bgcolor:COLORS.card,bordercolor:COLORS.border,borderwidth:1,borderpad:5});
+  }
+
+  const layout={
+    plot_bgcolor:COLORS.panel, paper_bgcolor:COLORS.bg, height:520,
+    margin:{l:60,r:45,t:30,b:40},
+    xaxis:{tickvals:xraw,ticktext:MATS,tickfont:{color:COLORS.grey,size:11},
+      tickangle:0,showgrid:false,zeroline:false,linecolor:COLORS.border,
+      showspikes:true,spikemode:"across",spikesnap:"cursor",
+      spikedash:"dot",spikecolor:COLORS.white,spikethickness:1},
+    yaxis:{tickfont:{color:COLORS.grey,size:10},gridcolor:COLORS.border,
+      showgrid:true,zeroline:true,zerolinecolor:COLORS.grey,zerolinewidth:0.8,
+      linecolor:COLORS.border,title:{text:"Rate (%)",font:{color:COLORS.grey,size:11}},
+      range:[ymin-pad,ymax+pad],tickformat:".2f",ticksuffix:"%"},
+    legend:{font:{color:COLORS.white,size:9.5},bgcolor:"rgba(0,0,0,0)",
+      orientation:"h",yanchor:"bottom",y:1.01,xanchor:"left",x:0},
+    hovermode:"x",
+    hoverlabel:{bgcolor:COLORS.card,bordercolor:COLORS.border,
+      font:{color:COLORS.white,size:11},align:"left"},
+    annotations:annotations,
+  };
+  Plotly.react("chart",traces,layout,{displayModeBar:true,displaylogo:false,
+    modeBarButtonsToRemove:["select2d","lasso2d","autoScale2d"]});
+
+  updateMetrics(curr,hist,cc);
+  // keep the top historical dropdown in sync with the slider
+  const hsel=document.getElementById("hist-select");
+  if(hsel && +hsel.value!==histIdx[cc]) hsel.value=histIdx[cc];
+  document.getElementById("slider-date").textContent="📅 "+fmtDate(hist.date);
+}
+
+function metricCard(label,value,cls,delta){
+  return '<div class="metric"><div class="m-label">'+label+'</div>'+
+    '<div class="m-value">'+value+'</div>'+
+    (delta?'<div class="m-delta '+cls+'">'+delta+'</div>':'')+'</div>';
+}
+
+function updateMetrics(curr,hist,cc){
+  // spreads
+  let html="";
+  ["2Y","5Y","10Y","30Y"].forEach(m=>{
+    const rc=curr.rates[m], rh=hist.rates[m];
+    if(rc===null||rh===null){html+=metricCard(m,"n/a","");return;}
+    const d=(rc-rh); const cls=d>0?"up":"down";
+    html+=metricCard(m,(d>0?"+":"")+d.toFixed(2)+"bp",cls,(d>0?"↑":"↓")+Math.abs(d).toFixed(2));
+  });
+  document.getElementById("spreads").innerHTML=html;
+  // slopes
+  html="";
+  [["Curr.",curr],["Hist.",hist]].forEach(([lbl,snap])=>{
+    const r2=snap.rates["2Y"], r10=snap.rates["10Y"];
+    if(r2===null||r10===null){html+=metricCard(lbl,"n/a","");return;}
+    const s=(r10-r2); const cls=s>0?"up":"down";
+    html+=metricCard(lbl,(s>0?"+":"")+s.toFixed(2)+"bp",cls,s>0?"↑Nrm":"↓Inv");
+  });
+  document.getElementById("slopes").innerHTML=html;
+  // CB cards
+  const meta=META[cc];
+  document.getElementById("cb-label").textContent="Central Bank — "+meta.cb;
+  const evs=DATA.countries[cc].events;
+  const last=evs.find(e=>e.type==="last_change");
+  const next=evs.find(e=>e.type==="next_meeting");
+  const today=new Date();
+  let cbHtml="";
+  if(last){
+    let bpStr,bpCol;
+    if(last.bp!==null){bpStr=(last.bp>0?"+":"")+last.bp+" bp";bpCol=last.bp>0?COLORS.green:COLORS.red||"#F85149";}
+    else{bpStr="NEER adj.";bpCol=COLORS.orange;}
+    const bpColFinal=last.bp!==null?(last.bp>0?"#3FB950":"#F85149"):"#58A6FF";
+    const lvlStr=last.level!==null?last.level.toFixed(2)+"%":"—";
+    const daysAgo=Math.round((today-new Date(last.date+"T00:00:00"))/864e5);
+    cbHtml+='<div class="cb-card" style="border-left-color:'+bpColFinal+';">'+
+      '<div class="cb-card-title" style="color:'+bpColFinal+';">Last Decision</div>'+
+      cbLine("Date",fmtDate(last.date),COLORS.white)+
+      cbLine("Change",bpStr,bpColFinal)+
+      cbLine("Policy rate",lvlStr,COLORS.white)+
+      cbLine("Since",daysAgo+"d ago",COLORS.grey)+'</div>';
+  }
+  if(next){
+    const daysTo=Math.round((new Date(next.date+"T00:00:00")-today)/864e5);
+    let dlbl;
+    if(daysTo>14)dlbl="in "+daysTo+"d";
+    else if(daysTo>=0)dlbl="in "+daysTo+"d ⚡";
+    else dlbl=Math.abs(daysTo)+"d ago";
+    cbHtml+='<div class="cb-card" style="border-left-color:'+COLORS.grey+';">'+
+      '<div class="cb-card-title" style="color:'+COLORS.grey+';">Next Meeting</div>'+
+      cbLine("Date",fmtDate(next.date),COLORS.white)+
+      cbLine("Countdown",dlbl,daysTo>=0&&daysTo<=14?COLORS.orange:COLORS.grey)+
+      '<div class="cb-note">'+(next.notes||"")+'</div></div>';
+  }
+  document.getElementById("cb-cards").innerHTML=cbHtml;
+  // ctx note
+  const ctx=document.getElementById("ctx-note");
+  ctx.style.borderLeftColor=meta.color;
+  ctx.querySelector("span").textContent=NOTES[cc]||"";
+}
+function cbLine(label,value,color){
+  return '<div class="cb-line"><span class="cb-line-label">'+label+'</span>'+
+    '<span class="cb-line-value" style="color:'+color+';">'+value+'</span></div>';
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function buildTabs(){
+  const el=document.getElementById("tabs");
+  el.innerHTML="";
+  Object.keys(DATA.countries).forEach(cc=>{
+    const b=document.createElement("div");
+    b.className="tab"+(cc===country?" active":"");
+    b.textContent=cc;
+    b.onclick=()=>{country=cc; stopPlay(); syncControls(); draw(); buildTabs();};
+    el.appendChild(b);
+  });
+}
+
+// ── Sync controls to current country ──────────────────────────────────────────
+function syncControls(){
+  const cc=country, meta=META[cc];
+  const snaps=DATA.countries[cc].snapshots;
+  document.getElementById("country-name").textContent=meta.name+" Sovereign Curve";
+  const pill=document.getElementById("cb-pill");
+  pill.textContent=meta.cb; pill.style.color=meta.color; pill.style.borderColor=meta.color;
+  document.getElementById("currency-note").textContent=meta.currency+" · Local currency";
+  // current select
+  const sel=document.getElementById("curr-select");
+  sel.innerHTML="";
+  snaps.forEach((s,i)=>{
+    const o=document.createElement("option");
+    o.value=i; o.textContent=fmtDate(s.date);
+    if(i===currIdx[cc])o.selected=true;
+    sel.appendChild(o);
+  });
+  sel.onchange=()=>{currIdx[cc]=+sel.value; draw();};
+  // historical date dropdown (top-right)
+  const hsel=document.getElementById("hist-select");
+  hsel.innerHTML="";
+  snaps.forEach((s,i)=>{
+    const o=document.createElement("option");
+    o.value=i; o.textContent=fmtDate(s.date);
+    if(i===histIdx[cc])o.selected=true;
+    hsel.appendChild(o);
+  });
+  hsel.onchange=()=>{
+    histIdx[cc]=+hsel.value;
+    document.getElementById("hist-slider").value=histIdx[cc];  // sync slider
+    draw();
+  };
+  // slider
+  const sld=document.getElementById("hist-slider");
+  sld.max=snaps.length-1;
+  sld.value=histIdx[cc];
+}
+
+// ── Slider: fires on EVERY movement (input event) ─────────────────────────────
+document.getElementById("hist-slider").addEventListener("input",e=>{
+  histIdx[country]=+e.target.value;
+  draw();   // ← redraws on every pixel of drag = live animation
+});
+
+// ── Play button ───────────────────────────────────────────────────────────────
+function stopPlay(){
+  playing=false;
+  if(playTimer){clearInterval(playTimer);playTimer=null;}
+  const btn=document.getElementById("play-btn");
+  btn.textContent="▶"; btn.classList.remove("playing");
+}
+document.getElementById("play-btn").addEventListener("click",()=>{
+  const btn=document.getElementById("play-btn");
+  if(playing){stopPlay();return;}
+  playing=true; btn.textContent="⏸"; btn.classList.add("playing");
+  const snaps=DATA.countries[country].snapshots;
+  if(histIdx[country]>=snaps.length-1)histIdx[country]=0;
+  playTimer=setInterval(()=>{
+    if(histIdx[country]>=snaps.length-1){stopPlay();return;}
+    histIdx[country]++;
+    document.getElementById("hist-slider").value=histIdx[country];
+    draw();
+  },350);
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildTabs();
+syncControls();
+draw();
+</script>
+</body>
+</html>
