@@ -4,6 +4,7 @@
 
  <img width="1841" height="852" alt="image" src="https://github.com/user-attachments/assets/a944f780-2946-490b-9c40-8ade73e51b26" />
 
+👉 Try it: **[Interactive Yield Curve Dashboard](https://eliseseguy3-dot.github.io/Sovereign_Yield_Curve_Tool/yield_curve_APAC.html)**
 
 *Interactive dashboard - current curve (solid) vs. historical snapshot (dashed orange),
 with country tabs, synced date slider + selector, live curve animation, policy-rate overlays,
