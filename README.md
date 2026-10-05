@@ -86,15 +86,4 @@ The butterfly spread is measured as: `2 x belly rate - (short wing + long wing)`
 
 ---
 
-## Metrics Displayed
-
-| Metric | Definition | Interpretation |
-|---|---|---|
-| **2Y / 5Y / 10Y / 30Y Spread** | Current rate minus historical rate, in bp | Green = rates rose - Orange = rates fell |
-| **2s10s Current / Historical** | 10Y minus 2Y at each date | Positive = normal slope - Negative = inverted |
-| **Last Decision** | Most recent central-bank move | Date, bp change, resulting policy rate |
-| **Next Meeting** | Next scheduled central-bank meeting | Date + live countdown |
-
----
-
 *Personal project - fixed income rates strategy analytics.*
