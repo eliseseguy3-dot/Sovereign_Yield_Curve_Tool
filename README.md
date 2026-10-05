@@ -1,10 +1,10 @@
 # Yield Curve Analysis Tool · APAC
 
 ## Preview
+<img width="1918" height="875" alt="image" src="https://github.com/user-attachments/assets/5a1fc04e-5ed6-463f-a8b6-1d199763b08c" />
 
- <img width="1841" height="852" alt="image" src="https://github.com/user-attachments/assets/a944f780-2946-490b-9c40-8ade73e51b26" />
 
-👉 Try it: **[Interactive Yield Curve Dashboard](https://eliseseguy3-dot.github.io/Sovereign_Yield_Curve_Tool/yield_curve_APAC.html)**
+👉 Try it: **[Interactive Yield Curve Dashboard](https://eliseseguy3-dot.github.io/sovereign_curves.html)**
 
 *Interactive dashboard - current curve (solid) vs. historical snapshot (dashed orange),
 with country tabs, synced date slider + selector, live curve animation, policy-rate overlays,
@@ -31,43 +31,6 @@ The core use case is curve movement analysis: understanding how the shape of a y
 - **Hover tooltips** - a vertical guide line follows the cursor and a box reports the current yield, historical yield, delta, and both policy rates at that maturity
 - Identify and quantify curve movements (parallel shifts, steepening, flattening, butterfly)
 - Key metrics: per-maturity spreads (2Y / 5Y / 10Y / 30Y, in bp), 2s10s slope for both dates, last central-bank decision, and next scheduled meeting with a live countdown
-
----
-
-## Why a standalone HTML file?
-
-The entire dashboard is a **single self-contained HTML file** (`yield_curve_APAC.html`): the data is embedded directly inside it, and the only external dependency (Plotly.js) is loaded from a CDN. This was a deliberate choice:
-
-- **Zero install, zero server.** A recruiter or colleague just opens the file in any browser - no Python, no `pip install`, no local server to spin up. This matters a lot when sharing a demo: the friction of "set up an environment first" is exactly what stops people from ever trying it.
-- **Shareable as a live link.** Because it is pure client-side HTML/JS, it can be hosted for free on GitHub Pages and shared as a single URL that works instantly.
-- **Genuinely fluid interaction.** A native `<input type="range">` slider fires on every pixel of movement, so the curve animates *live* while dragging. Server-based frameworks (Streamlit, Dash) only update once the slider is released, because every change round-trips to a Python backend - which kills the "watch the curve evolve" effect this project is built around.
-- **Self-documenting and portable.** One file is trivial to version, email, or archive. There is no build step and nothing to break between machines.
-
-The trade-off is that heavy data processing has to happen in JavaScript rather than Python. For this project that is a non-issue - the curve maths (cubic-spline smoothing, spread and slope calculations) is light and runs instantly in the browser. The data prep that *does* benefit from Python (reading Bloomberg exports, cleaning the Excel template) is done offline, once, and the result is baked into the file.
-
----
-
-## Usage
-
-### 1. Prepare the data
-
-Fill `yield_curve_template_APAC.xlsx` following the schema below, or use the mock data already included (realistic BoJ / PBOC / MAS / BOK / RBI dynamics, 2022–2025).
-
-**Sheet `yield_curve`** - one row per (date, country) snapshot, columns `3M ... 30Y`.
-
-> Rates in % (e.g. `2.44` = 2.44%). Date format: `YYYY-MM-DD`.
-
-**Sheet `rate_history`** - time series for a single maturity point.
-
-**Sheet `cb_events`** - central-bank events: last policy change (date, bp, resulting rate level) and next scheduled meeting per country.
-
-### 2. Open the dashboard
-
-```
-Double-click yield_curve_APAC.html
-```
-
-That's it - it opens in your browser, no installation required. To share it as a live link, drop it into a GitHub Pages repo.
 
 ---
 
