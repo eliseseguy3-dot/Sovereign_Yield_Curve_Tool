@@ -1,37 +1,15 @@
-# Yield Curve Analysis Tool · APAC
+# Yield Curve Analysis Tool
 
-## Preview
-<img width="1918" height="875" alt="image" src="https://github.com/user-attachments/assets/5a1fc04e-5ed6-463f-a8b6-1d199763b08c" />
+Try it: **[Interactive Yield Curve Dashboard](https://eliseseguy3-dot.github.io/Sovereign_Yield_Curve_Tool/sovereign_curves.html)**
 
 
-👉 Try it: **[Interactive Yield Curve Dashboard](https://eliseseguy3-dot.github.io/Sovereign_Yield_Curve_Tool/sovereign_curves.html)**
-
-*Interactive dashboard - current curve (solid) vs. historical snapshot (dashed orange),
-with country tabs, synced date slider + selector, live curve animation, policy-rate overlays,
-hover tooltips, and key rate metrics.*
-
----
-> ⚠️ **Disclaimer:** The data currently shipped with this tool is test data for demonstration purposes only - no accuracy, completeness, or reliability of the model or its outputs is guaranteed.
+This dashboard is tracking the yield curves of 12 countries across the G7, Europe and Asia.  
+It shows each full curve against one day, one month and one year ago, along with policy rates, slopes and spreads to Treasuries and Bunds.  
+ 
+Sources : Yields, daily, monthly and yearly changes, and policy rates come from [Trading Economics](https://tradingeconomics.com/bonds), including the [PBoC 7-day reverse repo](https://tradingeconomics.com/china/reverse-repo-rate) and [Singapore's SORA](https://tradingeconomics.com/singapore/interest-rate).
+Pages are fetched through public CORS relays ([r.jina.ai](https://r.jina.ai), [allorigins](https://allorigins.win), [codetabs](https://codetabs.com)).
 
 ---
-
-## Project Overview
-
-This tool is a **rates dashboard** built to visualise and compare sovereign yield curves across time and across the APAC region.
-
-The core use case is curve movement analysis: understanding how the shape of a yield curve has shifted between two dates, and what that implies in terms of central bank policy, inflation expectations, and term premium.
-
-**Coverage:** Japan (JP), China (CN), Singapore (SG), South Korea (KR), India (IN) - each with its own central bank (BoJ, PBOC, MAS, BOK, RBI) and local-currency sovereign curve.
-
-**Key capabilities:**
-
-- Overlay the current yield curve against any historical snapshot, selected via a top date-picker or a slider (the two stay in sync)
-- **Live curve animation** - drag the slider to watch the curve morph in real time, or press Play to sweep through every date automatically
-- **Policy-rate overlays** - horizontal dotted lines show the central-bank policy rate in effect at each date, so you can see the curve relative to the anchor
-- **Hover tooltips** - a vertical guide line follows the cursor and a box reports the current yield, historical yield, delta, and both policy rates at that maturity
-- Identify and quantify curve movements (parallel shifts, steepening, flattening, butterfly)
-- Key metrics: per-maturity spreads (2Y / 5Y / 10Y / 30Y, in bp), 2s10s slope for both dates, last central-bank decision, and next scheduled meeting with a live countdown
-
 ---
 
 ## Yield Curve Movements - Reference Guide
@@ -48,7 +26,7 @@ Understanding what changes between two curve snapshots is the analytical core of
 
 **How to read it on the chart:** The two curves run roughly parallel - the gap between them is consistent across all maturities.
 
-**Real-world example:** The ECB hiking cycle of 2022 produced a near-parallel upward shift of ~200bp across the entire German sovereign curve within 12 months. In APAC, the BoJ was the notable exception - Yield Curve Control kept the JGB curve pinned while peers repriced.
+**Example:** The ECB hiking cycle of 2022 produced a near-parallel upward shift of ~200bp across the entire German sovereign curve within 12 months. In APAC, the BoJ was the notable exception - Yield Curve Control kept the JGB curve pinned while peers repriced.
 
  <img width="1603" height="487" alt="move_parallel" src="https://github.com/user-attachments/assets/cc7e8660-a60a-444c-bcb2-2f6e7ceb9620" />
 
@@ -67,7 +45,7 @@ Two distinct variants:
 
 **How to read it on the chart:** The two curves diverge toward the right (long maturities). A rising 2s10s spread in the stats bar confirms steepening.
 
-**Real-world example:** China's CGB curve bull-steepened through 2024 as the PBOC eased aggressively, pulling the front end down while the long end lagged.
+**Example:** China's CGB curve bull-steepened through 2024 as the PBOC eased aggressively, pulling the front end down while the long end lagged.
 
  <img width="1603" height="487" alt="move_steepening" src="https://github.com/user-attachments/assets/e800a754-1a6c-4eb6-815a-2c09c95738c1" />
 
@@ -86,7 +64,7 @@ Two variants:
 
 **How to read it on the chart:** The two curves converge toward the right. A falling or negative 2s10s in the stats bar confirms flattening.
 
-**Real-world example:** 2022–2023 saw aggressive bear flattening in the US and Europe as the Fed and ECB hiked, pushing 2Y rates above 10Y rates and producing the deepest US curve inversion since the 1980s.
+**Example:** 2022–2023 saw aggressive bear flattening in the US and Europe as the Fed and ECB hiked, pushing 2Y rates above 10Y rates and producing the deepest US curve inversion since the 1980s.
 
 <img width="1603" height="487" alt="move_flattening" src="https://github.com/user-attachments/assets/05695246-3c5e-4ee6-a6e6-05efd3257d28" />
 
@@ -102,7 +80,7 @@ The butterfly spread is measured as: `2 x belly rate - (short wing + long wing)`
 
 **How to read it on the chart:** The mid-curve (2Y-5Y) deviates noticeably from a smooth interpolation between the wings - the curve develops a visible hump or dip in the middle.
 
-**Real-world example:** During the ECB's 2023 pause, the 5Y Bund temporarily traded richer than surrounding maturities, creating a negative butterfly as the market debated whether the first cut would come in March or June 2024.
+**Example:** During the ECB's 2023 pause, the 5Y Bund temporarily traded richer than surrounding maturities, creating a negative butterfly as the market debated whether the first cut would come in March or June 2024.
 
 <img width="1603" height="487" alt="move_butterfly" src="https://github.com/user-attachments/assets/0b44decf-4b58-4136-96ca-8005b2e6ff1a" />
 
