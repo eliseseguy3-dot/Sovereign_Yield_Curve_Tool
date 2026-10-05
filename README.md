@@ -4,7 +4,7 @@
 <img width="1918" height="875" alt="image" src="https://github.com/user-attachments/assets/5a1fc04e-5ed6-463f-a8b6-1d199763b08c" />
 
 
-👉 Try it: **[Interactive Yield Curve Dashboard](https://eliseseguy3-dot.github.io/sovereign_curves.html)**
+👉 Try it: **[Interactive Yield Curve Dashboard](https://eliseseguy3-dot.github.io/Sovereign_Yield_Curve_Tool/sovereign_curves.html)**
 
 *Interactive dashboard - current curve (solid) vs. historical snapshot (dashed orange),
 with country tabs, synced date slider + selector, live curve animation, policy-rate overlays,
