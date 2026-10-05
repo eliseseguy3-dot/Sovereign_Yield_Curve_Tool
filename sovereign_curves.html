@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sovereign Curves</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap" rel="stylesheet">
+<style>
+  /* Light palette inspired by the market desk screenshot */
+  :root{
+    --bg:#E9EDF2; --surface:#FFFFFF; --ink:#141922; --muted:#6A7381; --faint:#9AA3AF;
+    --rule:#E1E6EC; --track:#D5DCE4; --accent:#4F6F93;
+    --up:#1F8A5B; --down:#C2413A; --hover:#F4F6F9;
+    --us:#1E3A5F; --uk:#B5326E; --de:#5B6470; --fr:#2F86C9; --it:#6F8A1F; --es:#D9622B;
+    --jp:#A3324A; --cn:#C17D12; --kr:#3B5FC0; --sg:#13827F; --in:#6E4BAA;
+    --ca:#8A4B2D;
+    --serif:"Source Serif 4", Georgia, "Times New Roman", serif;
+    --sans:"Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top, 0px);
+    padding-bottom:env(safe-area-inset-bottom, 0px);
+  }
+  /* Dark palette following the system setting */
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#12161C; --surface:#1A2029; --ink:#E7EBF0; --muted:#98A2AF; --faint:#6C7684;
+      --rule:#29313C; --track:#36404C; --accent:#8FB0D6;
+      --up:#3FBF86; --down:#F06A62; --hover:#212833;
+      --us:#8FB4E8; --uk:#E77AAE; --de:#AEB6C2; --fr:#6CB8F0; --it:#A9C653; --es:#F2925E;
+      --jp:#E2708A; --cn:#E3A63F; --kr:#7F9DF0; --sg:#45C4BE; --in:#AA8BE3; --ca:#D38E6E;
+    }
+  }
+  /* Dark palette forced by the toggle */
+  :root[data-theme="dark"]{
+    --bg:#12161C; --surface:#1A2029; --ink:#E7EBF0; --muted:#98A2AF; --faint:#6C7684;
+    --rule:#29313C; --track:#36404C; --accent:#8FB0D6;
+    --up:#3FBF86; --down:#F06A62; --hover:#212833;
+    --us:#8FB4E8; --uk:#E77AAE; --de:#AEB6C2; --fr:#6CB8F0; --it:#A9C653; --es:#F2925E;
+    --jp:#E2708A; --cn:#E3A63F; --kr:#7F9DF0; --sg:#45C4BE; --in:#AA8BE3; --ca:#D38E6E;
+  }
+  html{scroll-padding-top:env(safe-area-inset-top, 0px);}
+  *,*::before,*::after{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans);
+    font-size:16px; line-height:1.45; font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased;}
+  button{font:inherit; color:inherit;}
+  a{color:inherit;}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:6px;}
+  .up{color:var(--up);} .down{color:var(--down);} .flat{color:var(--muted);}
+
+  /* Page layout */
+  .page{max-width:1240px; margin:0 auto; padding:40px 28px 56px;}
+
+  /* Header: serif title, session info and controls */
+  .top{display:flex; justify-content:space-between; align-items:flex-end; gap:24px; flex-wrap:wrap; margin-bottom:28px;}
+  h1{font-family:var(--serif); font-weight:400; font-size:clamp(2.4rem, 5vw, 3.6rem);
+    line-height:1; letter-spacing:-0.015em; margin:0;}
+  h1 .dot{color:var(--accent);}
+  .meta{text-align:right;}
+  .meta p{margin:0; color:var(--muted); font-size:.95rem;}
+  .meta strong{color:var(--ink); font-weight:600;}
+  .meta a{text-underline-offset:3px;}
+  .toolbar{display:flex; gap:8px; justify-content:flex-end; margin-top:10px; flex-wrap:wrap;}
+  .btn{background:var(--surface); border:1px solid var(--rule); border-radius:10px; padding:8px 14px; cursor:pointer;}
+  .btn:hover{background:var(--hover);}
+  .btn.icon{padding:8px 12px;}
+  .btn:disabled{opacity:.6; cursor:wait;}
+  #auto[aria-pressed="true"]{background:var(--ink); color:var(--surface); border-color:var(--ink);}
+  #stamp{margin:10px 0 0; color:var(--muted); font-size:.92rem; cursor:default;}
+  .live{display:inline-block; width:7px; height:7px; border-radius:50%; margin-left:6px; vertical-align:middle; background:var(--track);}
+  .live.on{background:var(--up);} .live.off{background:var(--down);}
+  .btn.spin{opacity:.6; pointer-events:none;}
+
+  /* Segmented controls */
+  .seg{display:flex; gap:4px; background:var(--bg); padding:4px; border-radius:12px; flex-wrap:wrap;}
+  .top .seg{background:var(--surface); border:1px solid var(--rule);}
+  .seg button{border:none; background:transparent; padding:6px 12px; border-radius:9px; cursor:pointer; color:var(--muted);}
+  .seg button:hover{color:var(--ink);}
+  .seg button[aria-pressed="true"]{background:var(--surface); color:var(--ink); box-shadow:0 1px 2px rgba(20,25,34,.1);}
+  .top .seg button[aria-pressed="true"]{background:var(--bg); box-shadow:none;}
+
+  /* Country strip: one card per market */
+  .strip{display:grid; grid-template-columns:repeat(var(--cols, 6), 1fr); background:var(--surface); border-radius:20px; overflow:hidden;}
+  .card{all:unset; box-sizing:border-box; cursor:pointer; padding:20px 20px 14px; display:flex; flex-direction:column; gap:2px;
+    position:relative; box-shadow:1px 0 0 var(--rule), 0 1px 0 var(--rule);}
+  .card:hover{background:var(--hover);}
+  .card:focus-visible{outline:2px solid var(--accent); outline-offset:-4px;}
+  .card[aria-pressed="true"]::before{content:""; position:absolute; left:20px; right:20px; top:0; height:3px; border-radius:0 0 3px 3px; background:var(--c);}
+  .card .name{color:var(--muted); font-size:.92rem;}
+  .card .val{font-family:var(--serif); font-size:2rem; line-height:1.15;}
+  .card .chg{font-weight:600; font-size:.92rem;}
+  .card .sub{color:var(--muted); font-size:.84rem; font-weight:400;}
+  .card .sub b{font-weight:600;}
+  .card .val small{font-family:var(--sans); font-size:.75rem; color:var(--muted); margin-left:6px; vertical-align:middle;}
+  .card .sub.pair{display:flex; flex-wrap:wrap; gap:0 10px;}
+  .strip.dense .card{padding:18px 14px 12px;} .strip.dense .card .sub{font-size:.8rem;} .strip.dense .card .val{font-size:1.8rem;}
+  .card svg{margin-top:8px; width:100%; height:42px; overflow:visible;}
+
+  /* Section titles */
+  .sec{display:flex; align-items:baseline; gap:14px; margin:44px 0 14px; flex-wrap:wrap;}
+  .sec h2{font-family:var(--serif); font-weight:400; font-size:1.75rem; margin:0;}
+  .sec span{color:var(--muted); font-size:.95rem;}
+
+  /* Main panel: chart and country sheet */
+  .main{display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:16px;}
+  .panel{background:var(--surface); border-radius:20px; padding:20px 22px;}
+  .controls{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:6px;}
+  .legend{display:flex; gap:18px; flex-wrap:wrap; color:var(--muted); font-size:.9rem; margin:10px 0 0;}
+  .legend i{display:inline-block; width:22px; height:0; border-top:2.5px solid var(--c); vertical-align:middle; margin-right:6px;}
+  .legend i.dash{border-top-style:dashed; border-top-width:2px;}
+  .chartbox{position:relative;}
+  #chart, #bars{display:block; width:100%;}
+  #chart{height:390px;} #bars{height:118px;}
+  .axis{fill:var(--faint); font-size:12px; font-family:var(--sans);}
+  .grid{stroke:var(--rule); stroke-width:1;}
+  .tip{position:absolute; pointer-events:none; background:var(--surface); border:1px solid var(--rule);
+    border-radius:12px; padding:10px 12px; font-size:.88rem; box-shadow:0 6px 24px rgba(20,25,34,.12);
+    min-width:180px; opacity:0; transition:opacity .12s;}
+  .tip b{font-family:var(--serif); font-weight:500; font-size:1.05rem;}
+  .tip .row{display:flex; justify-content:space-between; gap:14px;}
+  .tip .row span:first-child{color:var(--muted);}
+  .barsnote{color:var(--muted); font-size:.88rem; margin:4px 0 0;}
+
+  /* Country sheet */
+  .side h3{font-family:var(--serif); font-weight:400; font-size:1.45rem; margin:0;}
+  .side .who{color:var(--muted); font-size:.9rem; margin:0 0 16px;}
+  .big{font-family:var(--serif); font-size:2.6rem; line-height:1.05;}
+  .lbl{color:var(--muted); font-size:.88rem;}
+  .kv{display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-top:1px solid var(--rule); font-size:.95rem;}
+  .kv span:first-child{color:var(--muted);}
+  .kv span:last-child{font-weight:600; text-align:right;}
+  .kv.stack{flex-direction:column; gap:2px;}
+  .kv.stack span:last-child{text-align:left;}
+  .block{margin-top:18px;}
+  .side p.note{color:var(--muted); font-size:.92rem; line-height:1.55; margin:18px 0 0;}
+  .side .src{display:inline-block; margin-top:14px; font-size:.9rem; color:var(--accent); text-underline-offset:3px;}
+  .rank{display:grid; grid-template-columns:122px 1fr 58px; align-items:center; gap:10px; padding:7px 0; border-top:1px solid var(--rule); white-space:nowrap;}
+  .rank .b{height:8px; border-radius:4px; background:var(--c);}
+  .rank span:last-child{text-align:right; font-weight:600;}
+
+  /* Curve table */
+  .tablewrap{background:var(--surface); border-radius:20px; overflow-x:auto;}
+  table{width:100%; border-collapse:collapse; min-width:980px;}
+  th{font-weight:600; font-size:.88rem; text-align:right; padding:14px 8px 12px; border-bottom:1px solid var(--rule); white-space:nowrap;}
+  td{text-align:right; padding:12px 8px; border-bottom:1px solid var(--rule); white-space:nowrap;}
+  th:first-child, td:first-child{text-align:left; padding-left:20px;}
+  tbody tr.row{cursor:pointer;} tbody tr.row:hover{background:var(--hover);}
+  tr.group td{color:var(--muted); font-size:.85rem; font-weight:600; padding-top:16px; padding-bottom:6px; cursor:default; background:transparent;}
+  td .cn{font-weight:600; font-size:1.02rem;} td .cc{color:var(--muted); font-size:.85rem; margin-left:6px;}
+  td .sw{display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--c); margin-right:9px;}
+  td.num{font-weight:600;}
+  td.na{color:var(--faint);}
+  .range{width:124px; padding-right:20px !important;}
+  .range svg{width:104px; height:30px; display:block; margin-left:auto; overflow:visible;}
+
+  /* 10-year moves: YTD versus YoY */
+  .moves{background:var(--surface); border-radius:20px; padding:14px 22px 16px;}
+  .mv-legend{display:flex; gap:18px; color:var(--muted); font-size:.88rem; padding:4px 0 10px;}
+  .mv-legend i{display:inline-block; width:14px; height:9px; border-radius:3px; margin-right:6px; vertical-align:middle; background:var(--ink);}
+  .mv-legend i.yoy{opacity:.3;}
+  .mv-row{display:grid; grid-template-columns:130px 1fr 150px; align-items:center; gap:14px; padding:5px 0; border-top:1px solid var(--rule); cursor:pointer;}
+  .mv-row:hover{background:var(--hover);}
+  .mv-name{font-weight:600; font-size:.95rem; white-space:nowrap;}
+  .mv-track{position:relative; height:26px;}
+  .mv-zero{position:absolute; top:0; bottom:0; width:1px; background:var(--track);}
+  .mv-bar{position:absolute; height:9px; border-radius:3px; background:var(--c);}
+  .mv-bar.ytd{top:3px;} .mv-bar.yoy{bottom:3px; opacity:.32;}
+  .mv-val{display:flex; justify-content:flex-end; gap:12px; font-size:.9rem; white-space:nowrap;}
+  .mv-val b{font-weight:600;}
+
+  footer{color:var(--muted); font-size:.85rem; margin-top:28px; line-height:1.7;}
+  footer p{margin:0 0 8px; max-width:90ch;}
+  footer .links{display:flex; flex-wrap:wrap; gap:6px 16px;}
+  footer a{text-underline-offset:3px;}
+
+  /* Tablet and mobile */
+  @media (max-width: 1020px){
+    .main{grid-template-columns:1fr;}
+    .strip{grid-template-columns:repeat(3, 1fr);}
+    .mv-row{grid-template-columns:100px 1fr 120px;}
+    .meta{text-align:left;} .toolbar{justify-content:flex-start;}
+  }
+  @media (max-width: 620px){
+    .page{padding:24px 16px 40px;}
+    .strip{grid-template-columns:repeat(2, 1fr);}
+    .mv-row{grid-template-columns:84px 1fr; } .mv-val{grid-column:1 / -1; justify-content:flex-start;}
+    .card{padding:16px 14px 12px;} .card .val{font-size:1.7rem;}
+    .panel{padding:16px;}
+    #chart{height:300px;}
+  }
+  @media (prefers-reduced-motion: reduce){ .tip{transition:none;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="top">
+    <div>
+      <h1>Sovereign curves<span class="dot">.</span></h1>
+      <p id="stamp">Last update: loading…</p>
+    </div>
+    <div class="meta">
+      <div class="toolbar">
+        <div class="seg" id="regionSeg" aria-label="Region"></div>
+        <button class="btn icon" id="refresh" title="Fetch the latest quotes from Trading Economics">↻ Refresh</button>
+        <button class="btn" id="auto" aria-pressed="false" title="Refresh every 10 minutes">Auto 10 min</button>
+        <button class="btn" id="theme">Dark mode</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="strip" id="strip"></div>
+
+  <div class="sec"><h2>Curve</h2><span>yields in %, maturities spaced in proportion to time</span></div>
+  <div class="main">
+    <section class="panel">
+      <div class="controls">
+        <div class="seg" id="countrySeg" aria-label="Country shown"></div>
+      </div>
+      <div class="controls">
+        <div class="seg" id="cmpSeg" aria-label="Comparison period"></div>
+        <div class="seg" id="scaleSeg" aria-label="Maturity axis"></div>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="chartbox">
+        <svg id="chart" role="img" aria-label="Yield curve"></svg>
+        <div class="tip" id="tip"></div>
+      </div>
+      <svg id="bars" role="img" aria-label="Change by maturity in basis points"></svg>
+      <p class="barsnote" id="barsnote"></p>
+    </section>
+    <aside class="panel side" id="side"></aside>
+  </div>
+
+  <div class="sec"><h2>10-year moves</h2><span>year-to-date versus year-over-year, in basis points, sorted by YTD</span></div>
+  <div class="moves">
+    <div class="mv-legend"><span><i></i>YTD, since 31 Dec 2025</span><span><i class="yoy"></i>YoY, since a year ago</span></div>
+    <div id="moves"></div>
+  </div>
+
+  <div class="sec"><h2>Curve table</h2><span>yields in %, changes and spreads on the 10-year, in basis points</span></div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr>
+        <th>Market</th><th>2Y</th><th>10Y</th><th>30Y</th><th>2s10s</th>
+        <th>Day</th><th>1M</th><th>YTD</th><th>YoY</th><th>vs UST</th><th>vs Bund</th>
+        <th class="range">1Y ago → now</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <footer>
+    <p>Source: Trading Economics, over-the-counter interbank yield quotes. On opening and on every refresh, the page reads each market's Trading Economics page through a public relay
+      (r.jina.ai, then allorigins, then codetabs, as in the Poste de marché file) and redraws with the latest yields, changes and policy rates. A green dot on a card means live data,
+      a red dot means the fetch failed and the built-in snapshot of 29 Sep to 1 Oct 2026 is shown. Policy rates are refreshed too; China's PBoC 7-day reverse repo and Singapore's SORA are read from their own Trading Economics pages.
+      Curves for one day, one month and one year ago are rebuilt from the changes published for each maturity. YTD is measured on the 10-year only, against the
+      2025 year-end close implied by Trading Economics' YTD column (about ±1 bp of rounding); the source does not publish year-end levels for other maturities.
+      This is a snapshot taken at publication time, not a live feed.</p>
+    <div class="links" id="links"></div>
+  </footer>
+</div>
+
+<script>
+// Market data: [maturity, years, yield %, 1-day change, 1-month change, 1-year change] (changes in percentage points)
+const ust10 = () => COUNTRIES.US.pts.find(p => p[0] === "10Y")[2], bund10 = () => COUNTRIES.DE.pts.find(p => p[0] === "10Y")[2];
+const TE = "https://tradingeconomics.com/";
+const COUNTRIES = {
+  US:{name:"United States", ccy:"USD", region:"US", color:"var(--us)", date:"1 Oct", url:TE+"united-states/government-bond-yield",
+    bank:"Federal Reserve", cb:"Fed", policyLabel:"Fed funds (upper bound)", policy:4.00, last:"+25 bp, September 2026",
+    next:"Markets see a hike by December, roughly 38% odds for October",
+    note:"The 10-year hit 5.33%, its highest since early 2002, and the 30-year traded near 5.67%. Energy-driven inflation, resilient data and fiscal worries keep the long end under pressure.",
+    pts:[["3M",.25,4.12,-.001,.253,.170],["6M",.5,4.32,-.016,.301,.507],["1Y",1,4.52,-.028,.356,.899],
+      ["2Y",2,4.88,-.031,.489,1.332],["3Y",3,4.99,-.017,.547,1.434],["5Y",5,5.09,-.010,.551,1.426],
+      ["7Y",7,5.20,.010,.549,1.342],["10Y",10,5.313,.022,.529,1.227],["20Y",20,5.71,.023,.438,1.051],
+      ["30Y",30,5.66,.030,.404,.974]]},
+  DE:{name:"Germany", ccy:"EUR", region:"EMEA", color:"var(--de)", date:"1 Oct", url:TE+"germany/government-bond-yield",
+    bank:"European Central Bank", cb:"ECB", policyLabel:"Main refinancing rate", policy:2.65, last:"+25 bp, September 2026",
+    next:"Deposit rate priced near 2.8% by December, one more hike",
+    note:"The Bund sits near its highest level since June 2009 after a 27 bp selloff in September. It anchors the euro area: every EUR spread in the table is measured against it.",
+    pts:[["3M",.25,2.51,.057,.073,.783],["6M",.5,2.68,-.011,.105,.741],["1Y",1,2.82,-.059,.114,.872],
+      ["2Y",2,3.15,-.044,.167,1.137],["3Y",3,3.19,-.039,.200,1.123],["5Y",5,3.30,-.032,.200,1.004],
+      ["7Y",7,3.41,-.028,.194,.976],["10Y",10,3.549,-.030,.173,.851],["15Y",15,3.79,-.029,.145,.718],
+      ["30Y",30,3.91,-.018,.075,.638]]},
+  FR:{name:"France", ccy:"EUR", region:"EMEA", color:"var(--fr)", date:"1 Oct", url:TE+"france/government-bond-yield",
+    bank:"European Central Bank", cb:"ECB", policyLabel:"Main refinancing rate", policy:2.65, last:"+25 bp, September 2026",
+    next:"€54bn consolidation budget about to be unveiled",
+    note:"The OAT touched 4.95%, its highest since 2002, after the biggest quarterly rise in nearly four decades. The spread over the Bund, about 127 bp on 30 September, is near euro-crisis levels ahead of April elections.",
+    pts:[["3M",.25,2.70,-.002,.202,.721],["6M",.5,3.00,-.004,.264,.937],["1Y",1,3.02,-.006,.147,.965],
+      ["2Y",2,3.66,-.003,.470,1.543],["3Y",3,3.86,.045,.531,1.561],["5Y",5,4.19,.010,.578,1.377],
+      ["7Y",7,4.43,.009,.598,1.404],["10Y",10,4.914,.069,.661,1.392],["20Y",20,5.32,-.012,.554,1.257],
+      ["30Y",30,5.46,-.028,.467,1.112]]},
+  IT:{name:"Italy", ccy:"EUR", region:"EMEA", color:"var(--it)", date:"30 Sep / 1 Oct", url:TE+"italy/government-bond-yield",
+    bank:"European Central Bank", cb:"ECB", policyLabel:"Main refinancing rate", policy:2.65, last:"+25 bp, September 2026",
+    next:"General election next year, limited fiscal headroom",
+    note:"The BTP holds near a three-year high. Inflation is expected at 4.2% and the 2025 deficit was confirmed at 3.1% of GDP, above the EU ceiling. Notably, Italy now trades below France on the 10-year.",
+    pts:[["3M",.25,2.57,.011,.020,.775],["6M",.5,2.70,-.020,.084,.704],["1Y",1,3.13,.014,.304,1.079],
+      ["2Y",2,3.54,.006,.343,1.285],["3Y",3,3.68,-.002,.367,1.313],["5Y",5,4.02,-.014,.398,1.212],
+      ["7Y",7,4.26,-.007,.411,1.137],["10Y",10,4.64,.013,.475,1.089],["15Y",15,4.98,.009,.380,.981],
+      ["20Y",20,5.11,.007,.339,.964],["30Y",30,5.25,.029,.313,.780]]},
+  ES:{name:"Spain", ccy:"EUR", region:"EMEA", color:"var(--es)", date:"1 Oct", url:TE+"spain/government-bond-yield",
+    bank:"European Central Bank", cb:"ECB", policyLabel:"Main refinancing rate", policy:2.65, last:"+25 bp, September 2026",
+    next:"Inflation at 4.9% in September keeps pressure on the ECB",
+    note:"The Bono reached 4.14% in late September, its highest since January 2014. The front end moved sharply on the day, with 3M and 6M bills up more than 10 bp.",
+    pts:[["3M",.25,2.67,.119,.188,.721],["6M",.5,2.81,.108,.149,.818],["1Y",1,3.06,.014,.206,1.019],
+      ["2Y",2,3.29,-.087,.251,1.198],["3Y",3,3.43,-.054,.293,1.191],["5Y",5,3.62,-.036,.310,1.125],
+      ["7Y",7,3.80,-.023,.312,1.087],["10Y",10,4.134,-.010,.298,.892],["15Y",15,4.41,-.019,.276,.701],
+      ["30Y",30,4.67,.002,.184,.592]]},
+  UK:{name:"United Kingdom", ccy:"GBP", region:"EMEA", color:"var(--uk)", date:"1 Oct", url:TE+"united-kingdom/government-bond-yield",
+    bank:"Bank of England", cb:"BoE", policyLabel:"Bank Rate", policy:3.75, last:"Held, September 2026",
+    next:"November hike about 80% priced, budget on 28 October",
+    note:"The 10-year gilt climbed to 5.5%, its highest since July 2007, and the 30-year reached 6% for the first time since 1998. Gilts are the highest-yielding curve in the panel beyond 10 years.",
+    pts:[["3M",.25,4.06,.021,.138,-.033],["6M",.5,4.25,.021,.114,.159],["1Y",1,4.64,.030,.247,.742],
+      ["2Y",2,4.81,.057,.316,.807],["3Y",3,4.98,.045,.318,.996],["5Y",5,5.02,.043,.302,.884],
+      ["7Y",7,5.26,.041,.278,.962],["10Y",10,5.483,.059,.257,.769],["20Y",20,5.97,.064,.180,.568],
+      ["30Y",30,6.01,.058,.148,.507]]},
+  JP:{name:"Japan", ccy:"JPY", region:"APAC", color:"var(--jp)", date:"30 Sep", url:TE+"japan/government-bond-yield",
+    bank:"Bank of Japan", cb:"BoJ", policyLabel:"Policy rate", policy:1.25, last:"+25 bp, September 2026",
+    next:"October meeting, a back-to-back hike is being discussed",
+    note:"The 10-year trades at its highest since 1996 and the curve is one of the steepest in developed markets, with the 30-year above 4%. This week's 2-year and 40-year auctions were well covered.",
+    pts:[["3M",.25,1.29,.025,.275,.835],["6M",.5,1.40,-.010,.210,.915],["1Y",1,1.66,-.013,.179,.889],
+      ["2Y",2,1.94,-.028,.186,.980],["3Y",3,2.12,-.029,.180,1.110],["5Y",5,2.38,-.029,.171,1.146],
+      ["7Y",7,2.80,-.028,.130,1.318],["10Y",10,3.066,-.024,.119,1.413],["20Y",20,3.91,-.017,.074,1.289],
+      ["30Y",30,4.15,-.037,.011,.989]]},
+  CN:{name:"China", ccy:"CNY", region:"APAC", color:"var(--cn)", date:"30 Sep", url:TE+"china/government-bond-yield",
+    bank:"People's Bank of China", cb:"PBoC", policyLabel:"7-day reverse repo", policy:1.40, last:"−10 bp, May 2025",
+    next:"Markets closed 1 to 7 October for National Day",
+    note:"The only market in the panel whose 10-year is lower than a year ago. The 10-year stays near its lowest since July 2025 as markets judge the latest stimulus too small for weak demand.",
+    pts:[["1Y",1,1.21,-.015,-.039,-.169],["2Y",2,1.25,-.014,-.058,-.218],["3Y",3,1.28,-.005,-.020,-.305],
+      ["5Y",5,1.40,.007,-.052,-.213],["7Y",7,1.51,.021,-.061,-.272],["10Y",10,1.698,.017,-.011,-.165],
+      ["20Y",20,2.11,.022,-.078,-.128],["30Y",30,2.12,.019,-.061,-.146]]},
+  KR:{name:"South Korea", ccy:"KRW", region:"APAC", color:"var(--kr)", date:"30 Sep", url:TE+"south-korea/government-bond-yield",
+    bank:"Bank of Korea", cb:"BoK", policyLabel:"Base rate", policy:3.00, last:"+25 bp, August 2026",
+    next:"Further hikes depend on inflation and growth",
+    note:"Two consecutive 25 bp hikes in July and August. The 10-year is approaching its 2022 highs, driven by oil and its tight correlation with Treasuries.",
+    pts:[["1Y",1,3.85,.015,.253,1.538],["2Y",2,3.98,-.051,.285,1.453],["3Y",3,4.04,-.037,.198,1.437],
+      ["5Y",5,4.20,-.074,.142,1.448],["10Y",10,4.399,-.071,.086,1.439],["20Y",20,4.41,-.093,-.096,1.507],
+      ["30Y",30,4.53,-.107,0,1.689]]},
+  SG:{name:"Singapore", ccy:"SGD", region:"APAC", color:"var(--sg)", date:"1 Oct", url:TE+"singapore/government-bond-yield",
+    bank:"Monetary Authority of Singapore", cb:"MAS", policyLabel:"SORA (reference)", policy:1.40, last:"Policy runs through the S$NEER",
+    next:"MAS does not set a policy rate",
+    note:"AAA-rated SGS act as a regional safe haven. The 10-year touched 2.50% in mid-September, its highest since May 2025. The 15 to 30-year segment is almost flat.",
+    pts:[["3M",.25,1.74,.001,.263,.281],["6M",.5,1.88,.0001,.300,.470],["1Y",1,1.73,.030,.080,.380],
+      ["2Y",2,1.99,.002,.250,.493],["5Y",5,2.27,.022,.202,.626],["10Y",10,2.491,.021,.059,.581],
+      ["15Y",15,2.55,.020,.059,.611],["20Y",20,2.48,.023,.015,.560],["30Y",30,2.51,.010,-.004,.550]]},
+  IN:{name:"India", ccy:"INR", region:"APAC", color:"var(--in)", date:"1 Oct", url:TE+"india/government-bond-yield",
+    bank:"Reserve Bank of India", cb:"RBI", policyLabel:"Repo rate", policy:5.25, last:"Held, August 2026",
+    next:"Decision due next week",
+    note:"The 10-year is at a two-and-a-half-year high after +24 bp in September, and markets price nearly 100 bp of tightening over twelve months. The 3-year shows +26 bp on the day, creating a hump worth checking.",
+    pts:[["3M",.25,5.41,.010,.140,-.070],["6M",.5,5.97,.033,.345,.449],["1Y",1,6.12,-.057,.121,.461],
+      ["2Y",2,6.50,-.100,.255,.827],["3Y",3,6.96,.257,.628,1.117],["5Y",5,6.88,.012,.309,.772],
+      ["7Y",7,7.17,.028,.301,.697],["10Y",10,7.192,.033,.240,.658],["30Y",30,7.69,.014,.120,.537]]},
+  CA:{name:"Canada", ccy:"CAD", region:"AMER", color:"var(--ca)", date:"2 Oct", url:TE+"canada/government-bond-yield",
+    bank:"Bank of Canada", cb:"BoC", policyLabel:"Overnight rate", policy:2.25, last:"Held, September 2026",
+    next:"Markets expect the BoC to keep holding as growth slows",
+    note:"The 10-year topped 4% in early October, a three-year high, tracking the Treasury selloff. Growth is soft and a US ban on various Canadian imports has taken effect, which keeps the Bank of Canada on hold despite energy-driven inflation.",
+    pts:[["3M",.25,2.40,0,.095,-.035],["6M",.5,2.56,-.005,.130,.145],["1Y",1,2.91,0,.120,.505],
+      ["2Y",2,3.27,.013,.161,.822],["3Y",3,3.36,.013,.167,.874],["5Y",5,3.62,.020,.201,.885],
+      ["7Y",7,3.68,.025,.153,.753],["10Y",10,3.945,.014,.148,.758],["20Y",20,4.19,.018,.137,.623],
+      ["30Y",30,4.29,.018,.116,.619]]}
+};
+
+const ORDER = ["US","CA","UK","DE","FR","IT","ES","JP","CN","KR","SG","IN"];
+const G7 = ["US","CA","UK","DE","FR","IT","JP"];
+const REGIONS = {ALL:"All", EMEA:"EMEA", APAC:"APAC", G7:"G7"};
+const GROUPS = [["Americas", c => c.region === "US" || c.region === "AMER"], ["EMEA", c => c.region === "EMEA"], ["APAC", c => c.region === "APAC"]];
+const CMP = {d:{idx:3, label:"1 day ago", short:"1 day"}, m:{idx:4, label:"1 month ago", short:"1 month"}, y:{idx:5, label:"YoY", short:"1 year"}};
+
+// 10-year close at the end of 2025, implied by Trading Economics' YTD column (±1 bp rounding)
+const END2025 = {US:4.172, CA:3.42, UK:4.48, JP:2.07, DE:2.867, FR:3.565, IT:3.514, ES:3.288, CN:1.86, KR:3.387, SG:2.221, IN:6.571};
+
+// Interface state
+let region = "ALL", country = "US", cmp = "y", scale = "lin";
+
+// Formatting helpers
+const pct = v => v.toFixed(2) + "%";
+const bp = v => { const r = Math.round(v); return (r > 0 ? "+" : r < 0 ? "−" : "") + Math.abs(r) + " bp"; };
+const cls = v => Math.round(v) > 0 ? "up" : Math.round(v) < 0 ? "down" : "flat";
+const get = (cc, m) => COUNTRIES[cc].pts.find(p => p[0] === m);
+const matName = m => parseInt(m) + (m.endsWith("M") ? "-month" : "-year");
+const ytd = cc => (get(cc, "10Y")[2] - END2025[cc]) * 100;
+const yoy = cc => get(cc, "10Y")[5] * 100;
+
+// Markets visible in the chosen region (the US stays as the benchmark everywhere)
+const visible = () => ORDER.filter(cc => region === "ALL" || (region === "G7" ? G7.includes(cc) : cc === "US" || COUNTRIES[cc].region === region));
+
+// Curve for a period: today's yields minus the chosen change
+function curve(cc, key){
+  return COUNTRIES[cc].pts.map(p => ({m:p[0], t:p[1], y: key ? p[2] - p[CMP[key].idx] : p[2]}));
+}
+
+// Smooth path without overshoot (monotone cubic interpolation)
+function smooth(xs, ys){
+  const n = xs.length, d = [], m = [];
+  if(n < 2) return "M" + xs[0] + "," + ys[0];
+  for(let i = 0; i < n - 1; i++) d.push((ys[i+1] - ys[i]) / (xs[i+1] - xs[i]));
+  for(let i = 0; i < n; i++) m.push(i === 0 ? d[0] : i === n - 1 ? d[n-2] : (d[i-1] * d[i] <= 0 ? 0 : (d[i-1] + d[i]) / 2));
+  for(let i = 0; i < n - 1; i++){
+    if(d[i] === 0){ m[i] = m[i+1] = 0; continue; }
+    const a = m[i] / d[i], b = m[i+1] / d[i], s = a*a + b*b;
+    if(s > 9){ const t = 3 / Math.sqrt(s); m[i] = t*a*d[i]; m[i+1] = t*b*d[i]; }
+  }
+  let path = "M" + xs[0] + "," + ys[0];
+  for(let i = 0; i < n - 1; i++){
+    const h = (xs[i+1] - xs[i]) / 3;
+    path += "C" + (xs[i]+h) + "," + (ys[i]+m[i]*h) + " " + (xs[i+1]-h) + "," + (ys[i+1]-m[i+1]*h) + " " + xs[i+1] + "," + ys[i+1];
+  }
+  return path;
+}
+
+// Maturity axis: proportional to time by default, logarithmic as an option
+const T0 = Math.log(0.25), T1 = Math.log(30);
+const xOf = (t, left, w) => scale === "lin" ? left + t / 30 * w : left + (Math.log(t) - T0) / (T1 - T0) * w;
+
+// Region selector in the header
+function renderRegions(){
+  document.getElementById("regionSeg").innerHTML = Object.keys(REGIONS)
+    .map(k => `<button data-r="${k}" aria-pressed="${k === region}">${REGIONS[k]}</button>`).join("");
+  document.querySelectorAll("#regionSeg button").forEach(b => b.onclick = () => {
+    region = b.dataset.r;
+    if(country !== "ALL" && !visible().includes(country)) country = visible()[1] || "US";
+    renderAll();
+  });
+}
+
+// Country strip: one row per region in "All", today's curve over last year's curve
+function renderStrip(){
+  const list = visible(), strip = document.getElementById("strip");
+  strip.style.setProperty("--cols", region === "ALL" ? 6 : list.length);
+  strip.classList.toggle("dense", region !== "ALL" && list.length > 6);
+  strip.innerHTML = list.map(cc => {
+    const c = COUNTRIES[cc], p10 = get(cc, "10Y"), now = curve(cc), old = curve(cc, "y");
+    const all = now.concat(old).map(p => p.y), lo = Math.min(...all), hi = Math.max(...all);
+    const sx = t => now.length > 1 ? xOf(t, 0, 160) : 80, sy = v => 40 - (v - lo) / (hi - lo || 1) * 36;
+    const spark = now.length > 1
+      ? `<path d="${smooth(old.map(p => sx(p.t)), old.map(p => sy(p.y)))}" fill="none" stroke="var(--track)" stroke-width="1.6" vector-effect="non-scaling-stroke"/>
+         <path d="${smooth(now.map(p => sx(p.t)), now.map(p => sy(p.y)))}" fill="none" stroke="${c.color}" stroke-width="2" vector-effect="non-scaling-stroke"/>`
+      : `<line x1="0" x2="160" y1="${sy(old[0].y)}" y2="${sy(now[0].y)}" stroke="${c.color}" stroke-width="2" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>`;
+    return `<button class="card" style="--c:${c.color}" data-cc="${cc}" aria-pressed="${cc === country}">
+      <span class="name">${c.name}<i class="live ${c.live === true ? "on" : c.live === false ? "off" : ""}" title="${c.live === true ? "Live via " + c.proxy : c.live === false ? "Snapshot, live fetch failed (" + c.err + ")" : "Snapshot"}"></i></span>
+      <span class="val">${pct(p10[2])}<small>10Y</small></span>
+      <span class="chg ${cls(p10[3]*100)}">${bp(p10[3]*100)} <span class="sub">today</span></span>
+      <span class="sub pair"><span>YTD <b class="${cls(ytd(cc))}">${bp(ytd(cc))}</b></span><span>YoY <b class="${cls(yoy(cc))}">${bp(yoy(cc))}</b></span></span>
+      <svg viewBox="0 0 160 44" preserveAspectRatio="none" aria-hidden="true">${spark}</svg></button>`;
+  }).join("");
+  document.querySelectorAll(".card").forEach(b => b.onclick = () => select(b.dataset.cc));
+}
+
+// Country, comparison-period and axis-scale buttons
+function renderControls(){
+  document.getElementById("countrySeg").innerHTML = visible()
+    .map(cc => `<button data-cc="${cc}" aria-pressed="${cc === country}">${cc}</button>`).join("")
+    + `<button data-cc="ALL" aria-pressed="${country === "ALL"}">Compare all</button>`;
+  document.querySelectorAll("#countrySeg button").forEach(b => b.onclick = () => select(b.dataset.cc));
+  const seg = document.getElementById("cmpSeg");
+  seg.innerHTML = Object.keys(CMP).map(k => `<button data-k="${k}" aria-pressed="${k === cmp}">${CMP[k].label}</button>`).join("");
+  seg.style.display = country === "ALL" ? "none" : "flex";
+  document.querySelectorAll("#cmpSeg button").forEach(b => b.onclick = () => { cmp = b.dataset.k; render(); });
+  document.getElementById("scaleSeg").innerHTML = [["lin","Proportional"],["log","Log"]]
+    .map(([k, l]) => `<button data-s="${k}" aria-pressed="${k === scale}">${l}</button>`).join("");
+  document.querySelectorAll("#scaleSeg button").forEach(b => b.onclick = () => { scale = b.dataset.s; renderStrip(); render(); });
+}
+
+// Main chart: today's curve, comparison curve and policy rate
+function renderChart(){
+  const svg = document.getElementById("chart"), W = svg.clientWidth, H = svg.clientHeight;
+  const single = country !== "ALL";
+  const L = 48, R = single ? 18 : 138, Tp = 18, B = 34, w = W - L - R, h = H - Tp - B;
+  const sets = single
+    ? [{cc:country, pts:curve(country), color:COUNTRIES[country].color, main:true},
+       {cc:country, pts:curve(country, cmp), color:"var(--faint)", dash:true}]
+    : visible().map(cc => ({cc, pts:curve(cc), color:COUNTRIES[cc].color, main:true}));
+
+  // Vertical bounds rounded to the quarter point
+  let vals = sets.flatMap(s => s.pts.map(p => p.y));
+  if(single) vals.push(COUNTRIES[country].policy);
+  const lo = Math.floor((Math.min(...vals) - .15) * 4) / 4, hi = Math.ceil((Math.max(...vals) + .15) * 4) / 4;
+  const step = hi - lo > 8 ? 2 : hi - lo > 4 ? 1 : hi - lo > 1.6 ? .5 : .25;
+  const X = t => xOf(t, L, w), Y = v => Tp + (hi - v) / (hi - lo) * h;
+
+  // Grid and yield labels
+  let out = "";
+  for(let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step)
+    out += `<line class="grid" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="axis" x="${L-10}" y="${Y(v)+4}" text-anchor="end">${v.toFixed(step < 1 ? 2 : 0)}</text>`;
+
+  // Maturity labels, skipping any that would collide with the previous one
+  let lastX = -99;
+  [["3M",.25],["6M",.5],["1Y",1],["2Y",2],["3Y",3],["5Y",5],["7Y",7],["10Y",10],["15Y",15],["20Y",20],["30Y",30]].forEach(([m, t]) => {
+    if(X(t) - lastX < 30) return;
+    lastX = X(t);
+    out += `<line class="grid" x1="${X(t)}" x2="${X(t)}" y1="${Tp+h}" y2="${Tp+h+5}"/><text class="axis" x="${X(t)}" y="${H-10}" text-anchor="middle">${m}</text>`;
+  });
+
+  // Shaded area between today's curve and the comparison curve, plus policy rate line
+  if(single){
+    const a = sets[0].pts, b = sets[1].pts.slice().reverse();
+    if(a.length > 1){
+      const top = smooth(a.map(p => X(p.t)), a.map(p => Y(p.y)));
+      const back = smooth(b.map(p => X(p.t)), b.map(p => Y(p.y)));
+      out += `<path d="${top} L${back.slice(1)} Z" fill="${sets[0].color}" opacity=".09"/>`;
+    }
+    const c = COUNTRIES[country];
+    out += `<line x1="${L}" x2="${W-R}" y1="${Y(c.policy)}" y2="${Y(c.policy)}" stroke="var(--muted)" stroke-dasharray="2 4" stroke-width="1.2"/>
+      <text class="axis" x="${W-R}" y="${Y(c.policy)-6}" text-anchor="end">${c.policyLabel} ${pct(c.policy)}</text>`;
+    if(a.length === 1) out += `<text class="axis" x="${X(10)}" y="${Tp+14}" text-anchor="middle">Only the 10-year benchmark is published for ${c.name}</text>`;
+  }
+
+  // Curves and maturity points (single-point markets show a dot only)
+  sets.slice().reverse().forEach(s => {
+    out += `<path d="${smooth(s.pts.map(p => X(p.t)), s.pts.map(p => Y(p.y)))}" fill="none" stroke="${s.color}" stroke-width="${s.main ? (single ? 2.6 : 2) : 1.8}" ${s.dash ? 'stroke-dasharray="5 5"' : ""} stroke-linecap="round"/>`;
+    if(s.main || s.pts.length === 1) s.pts.forEach(p => out += `<circle cx="${X(p.t)}" cy="${Y(p.y)}" r="${single ? (s.pts.length === 1 ? 6 : 3.6) : 2.8}" fill="var(--surface)" stroke="${s.color}" stroke-width="2" ${s.dash ? 'stroke-dasharray="3 3"' : ""}/>`);
+  });
+
+  // Labels to the right of each curve, spread apart so they never overlap
+  if(!single){
+    const labels = sets.map(s => ({s, y:Y(s.pts[s.pts.length-1].y) + 4})).sort((a, b) => a.y - b.y);
+    for(let i = 1; i < labels.length; i++) labels[i].y = Math.max(labels[i].y, labels[i-1].y + 15);
+    labels.forEach(l => out += `<text x="${W-R+10}" y="${l.y}" font-size="12.5" font-weight="600" fill="${l.s.color}">${COUNTRIES[l.s.cc].name}</text>`);
+  }
+
+  out += `<line id="guide" x1="0" x2="0" y1="${Tp}" y2="${Tp+h}" stroke="var(--muted)" stroke-width="1" opacity="0"/>
+    <rect x="${L}" y="${Tp}" width="${w}" height="${h}" fill="transparent" id="hit"/>`;
+  svg.innerHTML = out;
+  hover(svg, sets, X);
+}
+
+// Tooltip that follows the maturity closest to the cursor
+function hover(svg, sets, X){
+  const tip = document.getElementById("tip"), guide = svg.querySelector("#guide");
+  const mats = [...new Map(sets.flatMap(s => s.pts.map(p => [p.m, p.t]))).entries()].sort((a, b) => a[1] - b[1]);
+  const show = e => {
+    const r = svg.getBoundingClientRect(), mx = e.clientX - r.left;
+    const [m, t] = mats.reduce((best, cur) => Math.abs(X(cur[1]) - mx) < Math.abs(X(best[1]) - mx) ? cur : best);
+    guide.setAttribute("x1", X(t)); guide.setAttribute("x2", X(t)); guide.setAttribute("opacity", .5);
+    let html = `<b>${matName(m)}</b>`;
+    if(country !== "ALL"){
+      const a = sets[0].pts.find(p => p.m === m), b = sets[1].pts.find(p => p.m === m);
+      html += `<div class="row"><span>Today</span><span>${pct(a.y)}</span></div>
+        <div class="row"><span>${CMP[cmp].label}</span><span>${pct(b.y)}</span></div>
+        <div class="row"><span>Change</span><span class="${cls((a.y-b.y)*100)}">${bp((a.y-b.y)*100)}</span></div>`;
+      if(m === "10Y") html += `<div class="row"><span>YTD</span><span class="${cls(ytd(country))}">${bp(ytd(country))}</span></div>`;
+    } else {
+      sets.map(s => [s, s.pts.find(q => q.m === m)]).filter(x => x[1]).sort((a, b) => b[1].y - a[1].y)
+        .forEach(([s, p]) => html += `<div class="row"><span style="color:${s.color}">${COUNTRIES[s.cc].name}</span><span>${pct(p.y)}</span></div>`);
+    }
+    tip.innerHTML = html; tip.style.opacity = 1;
+    tip.style.left = (X(t) + 14 + tip.offsetWidth > r.width ? X(t) - 14 - tip.offsetWidth : X(t) + 14) + "px";
+    tip.style.top = "16px";
+  };
+  const hide = () => { tip.style.opacity = 0; guide.setAttribute("opacity", 0); };
+  const hit = svg.querySelector("#hit");
+  hit.onmousemove = show; hit.onmouseleave = hide;
+  hit.ontouchstart = hit.ontouchmove = e => show(e.touches[0]);
+}
+
+// Change by maturity bars, evenly spaced so the short end stays readable
+function renderBars(){
+  const svg = document.getElementById("bars"), note = document.getElementById("barsnote");
+  if(country === "ALL"){ svg.style.display = "none"; note.textContent = "Pick a market to see the change at each maturity."; return; }
+  svg.style.display = "block";
+  const W = svg.clientWidth, H = svg.clientHeight, L = 48, R = 18, w = W - L - R, mid = (H - 20) / 2;
+  const pts = COUNTRIES[country].pts.map(p => ({m:p[0], v:p[CMP[cmp].idx] * 100}));
+  const slot = w / pts.length, bw = Math.min(26, slot * .55), fs = W < 520 ? 10 : 11.5;
+  const sc = (mid - 16) / Math.max(10, ...pts.map(p => Math.abs(p.v)));
+  let out = `<line x1="${L}" x2="${W-R}" y1="${mid}" y2="${mid}" stroke="var(--track)"/>`;
+  pts.forEach((p, i) => {
+    const x = L + slot * (i + .5), hgt = Math.abs(p.v) * sc, col = Math.round(p.v) >= 0 ? "var(--up)" : "var(--down)";
+    out += `<rect x="${x-bw/2}" y="${p.v >= 0 ? mid - hgt : mid}" width="${bw}" height="${Math.max(hgt, 1)}" rx="3" fill="${col}" opacity=".85"/>
+      <text x="${x}" y="${p.v >= 0 ? mid - hgt - 5 : mid + hgt + 13}" text-anchor="middle" font-size="${fs}" font-weight="600" fill="${col}">${bp(p.v).replace(" bp","")}</text>
+      <text class="axis" x="${x}" y="${H-4}" text-anchor="middle">${p.m}</text>`;
+  });
+  svg.innerHTML = out;
+  note.textContent = `Change at each maturity versus ${CMP[cmp].label === "YoY" ? "a year ago" : CMP[cmp].label}, in basis points.`;
+}
+
+// Chart legend
+function renderLegend(){
+  const el = document.getElementById("legend");
+  if(country === "ALL"){ el.innerHTML = `<span>Today's curves, ${region === "ALL" ? "all markets" : region + " with the US as benchmark"}</span>`; return; }
+  const c = COUNTRIES[country];
+  el.innerHTML = `<span><i style="--c:${c.color}"></i>Today (${c.date})</span>
+    <span><i class="dash" style="--c:var(--faint)"></i>${CMP[cmp].label === "YoY" ? "1 year ago" : CMP[cmp].label}</span>`;
+}
+
+// Country sheet: central bank, 10Y moves, slopes, spreads, context and source link
+function renderSide(){
+  const el = document.getElementById("side");
+  if(country === "ALL"){
+    const rows = visible().map(cc => [cc, get(cc, "10Y")[2]]).sort((a, b) => b[1] - a[1]);
+    const max = rows[0][1], top = rows[0], bottom = rows[rows.length-1];
+    const rising = visible().filter(cc => ytd(cc) > 0).length;
+    el.innerHTML = `<h3>10-year ranking</h3><p class="who">from highest to lowest yield</p>` +
+      rows.map(([cc, v]) => `<div class="rank" style="--c:${COUNTRIES[cc].color}"><span>${COUNTRIES[cc].name}</span>
+        <div class="b" style="width:${v / max * 100}%"></div><span>${pct(v)}</span></div>`).join("") +
+      `<p class="note">${COUNTRIES[top[0]].name} pays ${Math.round((top[1]-bottom[1])*100)} bp more than ${COUNTRIES[bottom[0]].name} on the 10-year.
+        ${rising} of ${rows.length} markets have a higher 10-year yield than at the start of the year.</p>`;
+    return;
+  }
+  const c = COUNTRIES[country], now = curve(country), old = curve(country, cmp);
+  const slope = (pts, a, b) => { const pa = pts.find(p => p.m === a), pb = pts.find(p => p.m === b); return pa && pb ? (pb.y - pa.y) * 100 : null; };
+  const slopes = [[now[0].m, "10Y"], ["2Y", "10Y"], ["10Y", "30Y"]].filter(([a, b]) => a !== b && slope(now, a, b) !== null).map(([a, b]) => {
+    const s = slope(now, a, b), s0 = slope(old, a, b);
+    return `<div class="kv"><span>${a} to ${b}</span><span>${bp(s)} <span class="${cls(s - s0)}" style="font-weight:500">(${bp(s - s0)})</span></span></div>`;
+  }).join("");
+  const p10 = get(country, "10Y")[2];
+  const spreads = (country !== "US" ? `<div class="kv"><span>10Y spread vs UST</span><span>${bp((p10 - ust10()) * 100)}</span></div>` : "")
+    + (c.ccy === "EUR" && country !== "DE" ? `<div class="kv"><span>10Y spread vs Bund</span><span>${bp((p10 - bund10()) * 100)}</span></div>` : "");
+  el.innerHTML = `<h3>${c.bank}</h3><p class="who">${c.cb}, ${c.ccy}</p>
+    <div class="big">${pct(c.policy)}</div><div class="lbl">${c.policyLabel}${c.policyLive ? `, live${c.policyRef ? " (" + c.policyRef + ")" : ""}` : c.policyLive === false ? ", snapshot (live fetch failed)" : ""}</div>
+    <div class="block">
+      <div class="kv stack"><span>Last move (as of 1 Oct 2026)</span><span>${c.last}</span></div>
+      <div class="kv stack"><span>What's next</span><span>${c.next}</span></div>
+    </div>
+    <div class="block">
+      <div class="kv"><span>10Y YTD</span><span class="${cls(ytd(country))}">${bp(ytd(country))}</span></div>
+      <div class="kv"><span>10Y YoY</span><span class="${cls(yoy(country))}">${bp(yoy(country))}</span></div>
+      ${spreads}
+    </div>
+    ${slopes ? `<div class="block"><div class="lbl" style="margin-bottom:4px">Slopes, change vs ${CMP[cmp].short} in brackets</div>${slopes}</div>` : ""}
+    <p class="note"><b>Context as of 1 Oct 2026.</b> ${c.note}</p>
+    <a class="src" href="${c.url}" target="_blank" rel="noopener">Source: ${c.name} on Trading Economics ↗</a>`;
+}
+
+// YTD versus YoY bars for the 10-year, sorted by YTD
+function renderMoves(){
+  const list = visible().map(cc => ({cc, a:ytd(cc), b:yoy(cc)})).sort((x, y) => y.a - x.a);
+  const vals = list.flatMap(r => [r.a, r.b]), lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+  const pos = v => (v - lo) / (hi - lo) * 100, zero = pos(0);
+  const bar = (v, cls2) => `<div class="mv-bar ${cls2}" style="left:${Math.min(pos(v), zero)}%; width:${Math.abs(pos(v) - zero)}%"></div>`;
+  document.getElementById("moves").innerHTML = list.map(r => `
+    <div class="mv-row" data-cc="${r.cc}" style="--c:${COUNTRIES[r.cc].color}">
+      <span class="mv-name">${COUNTRIES[r.cc].name}</span>
+      <div class="mv-track"><div class="mv-zero" style="left:${zero}%"></div>${bar(r.a, "ytd")}${bar(r.b, "yoy")}</div>
+      <span class="mv-val"><b class="${cls(r.a)}">${bp(r.a)}</b><span class="${cls(r.b)}">${bp(r.b)}</span></span>
+    </div>`).join("");
+  document.querySelectorAll(".mv-row").forEach(r => r.onclick = () => {
+    select(r.dataset.cc); document.querySelector(".main").scrollIntoView({behavior:"smooth", block:"start"});
+  });
+}
+
+// Summary table grouped by region, with a "year ago → today" bar on a shared 0 to 15% scale
+function renderTable(){
+  const sx = v => 6 + v / 8 * 92, cols = 12;
+  let html = "";
+  GROUPS.forEach(([label, test]) => {
+    const list = visible().filter(cc => test(COUNTRIES[cc]));
+    if(!list.length) return;
+    html += `<tr class="group"><td colspan="${cols}">${label}</td></tr>`;
+    list.forEach(cc => {
+      const c = COUNTRIES[cc], p10 = get(cc, "10Y"), y = m => get(cc, m) ? pct(get(cc, m)[2]) : "n/a";
+      const old = p10[2] - p10[5], p2 = get(cc, "2Y");
+      const a = sx(Math.min(old, p10[2])), b = sx(Math.max(old, p10[2]));
+      const na = `<td class="na">—</td>`;
+      html += `<tr class="row" data-cc="${cc}" style="--c:${c.color}">
+        <td><span class="sw"></span><span class="cn">${c.name}</span><span class="cc">${c.ccy}</span></td>
+        <td class="${p2 ? "" : "na"}">${y("2Y")}</td><td class="num">${y("10Y")}</td><td class="${get(cc,"30Y") ? "" : "na"}">${y("30Y")}</td>
+        ${p2 ? `<td>${bp((p10[2] - p2[2]) * 100)}</td>` : na}
+        <td class="${cls(p10[3]*100)}">${bp(p10[3]*100)}</td>
+        <td class="${cls(p10[4]*100)}">${bp(p10[4]*100)}</td>
+        <td class="${cls(ytd(cc))}">${bp(ytd(cc))}</td>
+        <td class="${cls(yoy(cc))}">${bp(yoy(cc))}</td>
+        ${cc === "US" ? na : `<td>${bp((p10[2] - ust10()) * 100)}</td>`}
+        ${c.ccy === "EUR" && cc !== "DE" ? `<td>${bp((p10[2] - bund10()) * 100)}</td>` : na}
+        <td class="range"><svg viewBox="0 0 104 30" aria-label="${pct(old)} a year ago, ${pct(p10[2])} today">
+          <line x1="6" x2="98" y1="20" y2="20" stroke="var(--track)" stroke-width="2" stroke-linecap="round"/>
+          <line x1="${a}" x2="${b}" y1="20" y2="20" stroke="${c.color}" stroke-width="4" stroke-linecap="round" opacity=".5"/>
+          <circle cx="${sx(old)}" cy="20" r="3.5" fill="var(--surface)" stroke="var(--faint)" stroke-width="1.5"/>
+          <line x1="${sx(p10[2])}" x2="${sx(p10[2])}" y1="13" y2="27" stroke="var(--ink)" stroke-width="2"/>
+          <text x="6" y="8" font-size="10.5" fill="var(--faint)">0%</text><text x="98" y="8" font-size="10.5" fill="var(--faint)" text-anchor="end">8%</text>
+        </svg></td></tr>`;
+    });
+  });
+  document.getElementById("tbody").innerHTML = html;
+  document.querySelectorAll("#tbody tr.row").forEach(r => r.onclick = () => {
+    select(r.dataset.cc); document.querySelector(".main").scrollIntoView({behavior:"smooth", block:"start"});
+  });
+}
+
+// Header counts and source links in the footer
+function renderMeta(){
+  document.getElementById("links").innerHTML = ORDER.map(cc =>
+    `<a href="${COUNTRIES[cc].url}" target="_blank" rel="noopener">${COUNTRIES[cc].name}</a>`).join("")
+    + `<a href="${TE}china/reverse-repo-rate" target="_blank" rel="noopener">PBoC 7-day reverse repo</a>`
+    + `<a href="${TE}singapore/interest-rate" target="_blank" rel="noopener">Singapore SORA</a>`
+    + `<a href="${TE}bonds" target="_blank" rel="noopener">10Y YTD table</a>`;
+}
+
+// Market selection from any clickable element
+function select(cc){ country = cc; render(); }
+
+// Redraw the parts that depend on the selected market
+function render(){
+  document.querySelectorAll(".card").forEach(b => b.setAttribute("aria-pressed", b.dataset.cc === country));
+  renderControls(); renderLegend(); renderChart(); renderBars(); renderSide();
+}
+
+// Redraw everything, used when the region changes
+function renderAll(){ renderRegions(); renderStrip(); renderMoves(); renderTable(); render(); }
+
+// Theme toggle, remembered in the browser when possible
+const themeBtn = document.getElementById("theme");
+function applyTheme(t){
+  if(t) document.documentElement.setAttribute("data-theme", t);
+  const dark = t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  themeBtn.textContent = dark ? "Light mode" : "Dark mode";
+}
+try { applyTheme(localStorage.getItem("theme")); } catch(e) { applyTheme(null); }
+themeBtn.onclick = () => {
+  const t = themeBtn.textContent === "Dark mode" ? "dark" : "light";
+  applyTheme(t);
+  try { localStorage.setItem("theme", t); } catch(e) {}
+};
+
+// ============================================================
+// Live data: Trading Economics pages read through public CORS relays
+// (same relays as the Poste de marché file, a local file cannot call these sites directly)
+// ============================================================
+const PX = {
+  jina:       u => "https://r.jina.ai/" + u,
+  allorigins: u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+  codetabs:   u => "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u)
+};
+const PX_ORDER = ["jina", "allorigins", "codetabs"];
+
+// At most three requests at once, public relays cut off beyond that
+function limiter(n){
+  let active = 0; const q = [];
+  const next = () => {
+    if(active >= n || !q.length) return;
+    active++;
+    const job = q.shift();
+    job.fn().then(job.res, job.rej).then(() => { active--; next(); });
+  };
+  return fn => new Promise((res, rej) => { q.push({fn, res, rej}); next(); });
+}
+const queue = limiter(3);
+
+// Fetch with a timeout
+function timedFetch(u, ms){
+  const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), ms);
+  return fetch(u, {cache:"no-store", signal:ctl.signal})
+    .then(r => { clearTimeout(to); if(!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+    .catch(e => { clearTimeout(to); throw e; });
+}
+
+// Try each relay in turn until one returns a page that contains a bond table
+async function viaProxy(url, check = /\d+\s?(Y|M|W)\b/){
+  let lastErr;
+  for(const name of PX_ORDER){
+    try{
+      const t = await queue(() => timedFetch(PX[name](url), 20000));
+      if(!check.test(t)) throw new Error("empty page");
+      return {text:t, proxy:name};
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr || new Error("relays unavailable");
+}
+
+// Turn a maturity label (3M, 52W, 10Y...) into our code and its length in years
+function normMat(n, u){
+  n = +n; u = u.toUpperCase();
+  if(u === "W"){ if(n >= 50) return ["1Y", 1]; if(n === 26) return ["6M", .5]; if(n === 13) return ["3M", .25]; return null; }
+  if(u === "M"){ if(n === 12) return ["1Y", 1]; if(n === 3 || n === 6) return [n + "M", n / 12]; return null; }
+  if(n >= 1 && n <= 30) return [n + "Y", n];
+  return null;
+}
+
+// Read the table rows of a Trading Economics page, whether the relay returned HTML or Markdown
+function tableRows(text){
+  if(/<table/i.test(text)){
+    const doc = new DOMParser().parseFromString(text, "text/html");
+    return [...doc.querySelectorAll("tr")].map(tr => [...tr.children].map(td => td.textContent.replace(/\s+/g, " ").trim()));
+  }
+  return text.split("\n").filter(l => l.trim().startsWith("|"))
+    .map(l => l.split("|").slice(1, -1).map(c => c.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").trim()));
+}
+
+// Extract the curve (yield, day, month, year changes), the policy rate and the quote date
+function parseTE(text){
+  const groups = {}, out = {pts:[], policy:null, date:null};
+  tableRows(text).forEach(cells => {
+    if(!cells.length) return;
+    const label = cells[0], nums = cells.slice(1).map(c => parseFloat(c.replace(/[%,]/g, ""))).filter(Number.isFinite);
+    const m = label.match(/^(.*?)\s*\b(\d+)\s?(M|W|Y)$/i);
+    if(m && nums.length >= 4){
+      // Rows are grouped by country prefix ("Japan", "US"...); the page's own curve is the largest group
+      const mat = normMat(m[2], m[3]), g = groups[m[1]] = groups[m[1]] || {pts:{}, date:null};
+      if(mat && !g.pts[mat[0]]){
+        g.pts[mat[0]] = [mat[0], mat[1], nums[0], nums[1], nums[2], nums[3]];
+        const d = cells.find(c => /^[A-Z][a-z]{2}\/\d{1,2}$/.test(c));
+        if(d && (mat[0] === "10Y" || !g.date)) g.date = d;
+      }
+    } else if(/(interest rate|fed funds)/i.test(label) && !/(deposit|lending|interbank|real)/i.test(label) && nums.length && out.policy === null){
+      out.policy = nums[0]; out.policyRef = cells.find(c => /^[A-Z][a-z]{2} \d{4}$/.test(c)) || null;
+    }
+  });
+  const best = Object.values(groups).sort((a, b) => Object.keys(b.pts).length - Object.keys(a.pts).length)[0];
+  if(best){ out.pts = Object.values(best.pts).sort((a, b) => a[1] - b[1]); out.date = best.date; }
+  return out;
+}
+
+// "Oct/05" -> "5 Oct"
+const teDate = d => d ? d.replace(/^([A-Z][a-z]{2})\/0?(\d+)$/, "$2 $1") : null;
+
+// China and Singapore: the bond page's "interest rate" is not the rate shown here (LPR for China,
+// no policy rate for Singapore), so their reference rate is read from its own Trading Economics page
+const POLICY_PAGES = {
+  CN:{url:TE + "china/reverse-repo-rate", label:/7-Day Reverse Repo Rate/i},
+  SG:{url:TE + "singapore/interest-rate", label:/Overnight Rate Average|SORA/i}
+};
+
+// Read one labelled row ("7-Day Reverse Repo Rate | 1.40 | 1.40 | percent | Aug 2026")
+function parsePolicyRow(text, label){
+  for(const cells of tableRows(text)){
+    if(!cells.length || !label.test(cells[0])) continue;
+    const nums = cells.slice(1).map(c => parseFloat(c.replace(/[%,]/g, ""))).filter(Number.isFinite);
+    if(nums.length) return {rate:nums[0], ref:cells.find(c => /^[A-Z][a-z]{2} \d{4}$/.test(c)) || null};
+  }
+  return null;
+}
+async function fetchPolicy(cc){
+  const cfg = POLICY_PAGES[cc];
+  try{
+    const {text} = await viaProxy(cfg.url, cfg.label);
+    return parsePolicyRow(text, cfg.label);
+  }catch(e){ return null; }
+}
+
+// Refresh: load every market, update the data in place, then redraw
+let busy = false;
+async function refresh(){
+  if(busy) return;
+  busy = true;
+  const btn = document.getElementById("refresh"), stamp = document.getElementById("stamp");
+  btn.textContent = "↻ Loading…"; btn.disabled = true;
+  stamp.textContent = "Last update: loading…";
+  let ok = 0;
+  await Promise.all(ORDER.map(async cc => {
+    const c = COUNTRIES[cc];
+    try{
+      const policyJob = POLICY_PAGES[cc] ? fetchPolicy(cc) : null;
+      const {text, proxy} = await viaProxy(c.url);
+      const r = parseTE(text);
+      if(!r.pts.some(p => p[0] === "10Y")) throw new Error("no 10Y row");
+      c.pts = r.pts;
+      if(r.date) c.date = teDate(r.date);
+      if(policyJob){
+        const pol = await policyJob;
+        if(pol){ c.policy = pol.rate; c.policyRef = pol.ref; c.policyLive = true; } else c.policyLive = false;
+      } else if(r.policy !== null){ c.policy = r.policy; c.policyRef = r.policyRef; c.policyLive = true; }
+      c.live = true; c.proxy = proxy; c.err = null; ok++;
+    }catch(e){
+      c.live = false; c.err = e.message || "failed";
+    }
+  }));
+  const now = new Date();
+  const dates = [...new Set(ORDER.filter(cc => COUNTRIES[cc].live).map(cc => COUNTRIES[cc].date))];
+  const when = now.toLocaleDateString("en-GB", {weekday:"long", day:"numeric", month:"long"}) + ", " + now.toLocaleTimeString("en-GB", {hour:"2-digit", minute:"2-digit"});
+  stamp.textContent = ok ? `Last update: ${when}` : "Last update: failed, showing the built-in snapshot";
+  stamp.title = `${ok} of ${ORDER.length} markets live. Closes: ${dates.join(", ")}`;
+  if(country !== "ALL" && !get(country, "10Y")) country = "US";
+  renderMeta(); renderAll();
+  btn.textContent = "↻ Refresh"; btn.disabled = false; busy = false;
+}
+
+// Optional auto-refresh every 10 minutes, remembered in the browser
+let autoTimer = null;
+function setAuto(on){
+  const b = document.getElementById("auto");
+  b.setAttribute("aria-pressed", on);
+  clearInterval(autoTimer);
+  autoTimer = on ? setInterval(refresh, 600000) : null;
+  try{ localStorage.setItem("curves-auto", on ? "1" : "0"); }catch(e){}
+}
+document.getElementById("refresh").onclick = refresh;
+document.getElementById("auto").onclick = e => setAuto(e.currentTarget.getAttribute("aria-pressed") !== "true");
+
+// First render and redraw on resize
+renderMeta(); renderAll();
+try{ if(localStorage.getItem("curves-auto") === "1") setAuto(true); }catch(e){}
+refresh();
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(render, 120); });
+
+</script>
+</body>
+</html>
