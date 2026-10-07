@@ -1,4 +1,4 @@
-# Yield Curve Analysis Tool
+# Yield Curve Dashboard
 
 Try it: **[Interactive Yield Curve Dashboard](https://eliseseguy3-dot.github.io/Sovereign_Yield_Curve_Tool/sovereign_curves.html)**
 
